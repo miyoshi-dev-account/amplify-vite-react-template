@@ -21,7 +21,7 @@ const Input = React.lazy(() => import("@cloudscape-design/components/input"));
 const Select = React.lazy(() => import("@cloudscape-design/components/select"));
 const Button = React.lazy(() => import("@cloudscape-design/components/button"));
 const Box = React.lazy(() => import("@cloudscape-design/components/box"));
-const StatusIndicator = React.lazy(() => import("@cloudscape-design/components/status-indicator"));
+//const StatusIndicator = React.lazy(() => import("@cloudscape-design/components/status-indicator"));
 const Alert = React.lazy(() => import("@cloudscape-design/components/alert"));
 const ColumnLayout = React.lazy(() => import("@cloudscape-design/components/column-layout"));
 
