@@ -121,7 +121,7 @@
   }
 
   .contact-info-grid {
-    grid-templatlate-columns: 1fr;
+    grid-template-columns: 1fr;
   }
 
   .phone-number-container {
