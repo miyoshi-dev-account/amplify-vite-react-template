@@ -5,9 +5,11 @@ import { AmazonConnectApp, AppContactScope } from "@amazon-connect/app";
 import { AgentClient, /*AgentStateChangedEventData,*/ ContactClient } from "@amazon-connect/contact";
 import { VoiceClient } from "@amazon-connect/voice";
 import { applyConnectTheme } from "@amazon-connect/theme";
-import { loadConfig } from './config';
+//import { loadConfig } from './config';
+import loadConfig from './config';
 
-import { UserList } from './UserList';
+//import { UserList } from './UserList';
+import UserList from './UserList';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
