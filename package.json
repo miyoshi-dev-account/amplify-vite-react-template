@@ -10,10 +10,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@amazon-connect/app": "^1.0.11",
+    "@amazon-connect/contact": "^1.0.11",
+    "@amazon-connect/core": "^1.0.11",
+    "@amazon-connect/email": "^1.0.11",
+    "@amazon-connect/theme": "^1.0.11",
+    "@amazon-connect/voice": "^1.0.11",
+    "@amazon-connect/workspace-types": "^1.0.11",
     "@aws-amplify/ui-react": "~6.13.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
     "aws-amplify": "~6.15.10",
+    "i18next": "^26.2.0",
     "react": "~18.3.1",
-    "react-dom": "~18.3.1"
+    "react-dom": "~18.3.1",
+    "react-i18next": "^17.0.8"
   },
   "engines": {
     "node": ">= 20.20.0",
