@@ -6,10 +6,10 @@ import { AgentClient, /*AgentStateChangedEventData,*/ ContactClient } from "@ama
 import { VoiceClient } from "@amazon-connect/voice";
 import { applyConnectTheme } from "@amazon-connect/theme";
 //import { loadConfig } from './config';
-import loadConfig from './config';
+import loadConfig from './config.ts';
 
 //import { UserList } from './UserList';
-import UserList from './UserList';
+import UserList from './UserList.tsx';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
