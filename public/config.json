@@ -1,0 +1,25 @@
+{
+  "version": "2.0.6",
+  "contactSearchUrl": "https://test-3rdparty-app.my.connect.aws/contact-search",
+  "maxContactAttributes": 10,
+  "contactAttributes": {
+    "Key1": "電話番号",
+    "Key2": "エスカレーションの理由",
+    "Key3": "顧客の要件",
+    "Key4": "ボットの会話要約",
+    "Key5": "顧客の感情",
+    "Key6": "予備",
+    "Key7": "予備",
+    "Key8": "予備",
+    "Key9": "予備",
+    "Key10": "予備"
+  },
+  "queueDisplayNames": {
+    "BasicQueue": "+1 866-556-8731",
+    "Demo01": "+1 800-557-3650"
+  },
+  "countryCode": {
+    "日本 (+81)": "+81",
+    "米国 (+1)": "+1"
+  }
+}
