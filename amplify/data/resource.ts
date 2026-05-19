@@ -12,6 +12,36 @@ const schema = a.schema({
       content: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
+
+  /* UserList用データ定義追加 */
+  UserList: a
+    .model({
+      instanceAlias: a.string(),
+      userName: a.string(),
+      agentId: a.string(),
+      directoryUserId: a.string(),
+      firstName: a.string(),
+      lastName: a.string(),
+      emailAddress: a.string(),
+      securityProfileIds: a.string(),
+      routingProfileId: a.string(),
+      hierarchyGroupId: a.string(),
+      acwTimeLimit: a.string(),
+      autoAccept: a.string(),
+      phoneType: a.string(),
+      deviceId: a.string(),
+      inQueueAlert: a.json(), /*{
+        blowserPhone: a.string(),
+        realtimeMetrics: a.string(),
+        __typename: a.string()
+      }*/
+      status: a.string(),
+      statusStartTimestamp: a.string(),
+      correspondingQueue: a.string(),
+      outboundQueueListId: a.string(),
+      queueList: a.json()  // キューによるフィルター用の項目
+    })
+    .authorization((allow) => [allow.publicApiKey()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -32,7 +62,7 @@ Go to your frontend source code. From your client-side code, generate a
 Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
 WORK IN THE FRONTEND CODE FILE.)
 
-Using JavaScript or Next.js React Server Components, Middleware, Server 
+Using JavaScript or Next.js React Server Components, Middleware, Server
 Actions or Pages Router? Review how to generate Data clients for those use
 cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
 =========================================================================*/
