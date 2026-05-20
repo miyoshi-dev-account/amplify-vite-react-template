@@ -186,7 +186,7 @@ export const handler: KinesisStreamHandler = async (
                 }
             );
 
-            logger.info(`Get UserList: ${JSON.stringify(response)}`);
+            logger.info(`Get UserList: ${JSON.stringify(response.data)}`);
 
             // 新規作成or更新の判定
             // エージェントIDで取得したリストを検索
