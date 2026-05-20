@@ -74,9 +74,47 @@ const CREATE_USER_LIST = `
   }
 `;
 
+const LIST_USER_LIST = `
+  query listUserLists() {
+    listUserLists() {
+      agentId
+      id
+      status
+      userName
+      queueList    
+    }
+  }
+`;
+
 async function createSignedRequest(query: string, variables: CreateUserListVariables) {
     const url = new URL(process.env.APPSYNC_ENDPOINT!);
     const body = { query, variables };
+
+    const request = {
+        headers: {
+            "Content-Type": "application/json",
+            host: url.hostname,
+        },
+        hostname: url.hostname,
+        method: "POST",
+        path: url.pathname,
+        protocol: url.protocol,
+        body: JSON.stringify(body),
+    };
+
+    const signer = new SignatureV4({
+        credentials: defaultProvider(),
+        region: process.env.REGION || "ap-northeast-1",
+        service: "appsync",
+        sha256: Sha256,
+    });
+
+    return { signedRequest: await signer.sign(request), body };
+}
+
+async function listSignedRequest(query: string) {
+    const url = new URL(process.env.APPSYNC_ENDPOINT!);
+    const body = { query };
 
     const request = {
         headers: {
@@ -124,18 +162,48 @@ async function getRecordDataAsync(
 export const handler: KinesisStreamHandler = async (
     event,
     context
-): Promise<KinesisStreamBatchResponse> => {    // 挙動確認用
+): Promise<KinesisStreamBatchResponse> => {
     for (const record of event.Records) {
         try {
             logger.info(`Processed Kinesis Event - EventID: ${record.eventID}`);
             const recordData = await getRecordDataAsync(record.kinesis);
             logger.info(`Record Data: ${recordData}`);
+
+            // ステータス変更時のイベントか判定
+            const recordJson = JSON.parse(recordData);
+            if (recordJson.EventType !== "STATE_CHANGE") {
+                logger.info(`Not status change event.`);
+                return { batchItemFailures: [] };
+            }
+
+            // AppSyncのエンドポイント設定
+            if (!process.env.APPSYNC_ENDPOINT) {
+                throw new Error("APPSYNC_ENDPOINT environment variable is not set");
+            }
+
+            // 保存済みのエージェントリストの取得
+            const { signedRequest, body } = await listSignedRequest(
+                LIST_USER_LIST
+            );
+
+            const response = await axios.post(
+                `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
+                body,
+                {
+                    headers: signedRequest.headers,
+                }
+            );
+
+            logger.info(`Get UserList: ${JSON.stringify(response)}`);
+
+            // 新規作成or更新の判定
+            // エージェントIDで取得したリストを検索
+
+            // 新規作成
+            // 更新
+
         } catch (err) {
             logger.error(`An error occurred ${err}`);
-            /*
-            When processing stream data, if any item fails, returning the failed item's position immediately
-            prompts Lambda to retry from this item forward, ensuring continuous processing without skipping data.
-            */
             return {
                 batchItemFailures: [{ itemIdentifier: record.kinesis.sequenceNumber }],
             };
@@ -152,26 +220,26 @@ export const handler: KinesisStreamHandler = async (
 
         const variables = {
             input: {
-                instanceAlias: string,
-                userName: string,
-                agentId: string,
-                directoryUserId: string,
-                firstName: string,
-                lastName: string,
-                emailAddress: string,
-                securityProfileIds: string,
-                routingProfileId: string,
-                hierarchyGroupId: string,
-                acwTimeLimit: string,
-                autoAccept: string,
-                phoneType: string,
-                deviceId: string,
-                inQueueAlert: JSON,
-                status: string,
-                statusStartTimestamp: string,
-                correspondingQueue: string,
-                outboundQueueListId: string,
-                queueList: JSON
+                instanceAlias: recordJson.CurrentAgentSnapshot.AgentStatus,
+                userName: recordJson.CurrentAgentSnapshot.Configuration.Username,
+                agentId: recordJson.AgentARN,
+                //directoryUserId: string,
+                firstName: recordJson.CurrentAgentSnapshot.Configuration.FirstName,
+                lastName: recordJson.CurrentAgentSnapshot.Configuration.LastName,
+                //emailAddress: string,
+                //securityProfileIds: string,
+                routingProfileId: recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile,
+                //hierarchyGroupId: string,
+                //acwTimeLimit: string,
+                autoAccept: recordJson.CurrentAgentSnapshot.Configuration.AutoAccept,
+                //phoneType: string,
+                //deviceId: string,
+                //inQueueAlert: JSON,
+                status: recordJson.CurrentAgentSnapshot.AgentStatus.Name,
+                statusStartTimestamp: recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp,
+                //correspondingQueue: string,
+                //outboundQueueListId: string,
+                //queueList: JSON
             },
         };
 
