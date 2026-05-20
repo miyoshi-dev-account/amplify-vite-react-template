@@ -75,8 +75,8 @@ const CREATE_USER_LIST = `
 `;
 
 const LIST_USER_LIST = `
-  query listUserLists() {
-    listUserLists() {
+  query listUserLists {
+    listUserLists {
       agentId
       id
       status
@@ -173,7 +173,9 @@ export const handler: KinesisStreamHandler = async (
             const { signedRequest, body } = await listSignedRequest(
                 LIST_USER_LIST
             );
-            logger.info(`Get signedRequest: ${signedRequest}`);
+            logger.info(`Get signedRequest protocol: ${signedRequest.protocol}`);
+            logger.info(`Get signedRequest hostname: ${signedRequest.hostname}`);
+            logger.info(`Get signedRequest path: ${signedRequest.path}`);
             logger.info(`Get body: ${body}`);
 
             const response = await axios.post(
