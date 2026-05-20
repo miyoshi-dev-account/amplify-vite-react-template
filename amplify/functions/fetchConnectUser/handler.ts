@@ -138,18 +138,6 @@ async function listSignedRequest(query: string) {
     return { signedRequest: await signer.sign(request), body };
 }
 
-function getRandomNumber(
-    min: number,
-    max: number,
-    decimals: number = 1
-): number {
-    return Number((Math.random() * (max - min) + min).toFixed(decimals));
-}
-
-function getRandomDeviceId(): string {
-    return `device_${String(Math.floor(Math.random() * 100)).padStart(3, "0")}`;
-}
-
 async function getRecordDataAsync(
     payload: KinesisStreamRecordPayload
 ): Promise<string> {
@@ -185,6 +173,8 @@ export const handler: KinesisStreamHandler = async (
             const { signedRequest, body } = await listSignedRequest(
                 LIST_USER_LIST
             );
+            logger.info(`Get signedRequest: ${signedRequest}`);
+            logger.info(`Get body: ${body}`);
 
             const response = await axios.post(
                 `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
