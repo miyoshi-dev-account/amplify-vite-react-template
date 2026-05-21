@@ -26,6 +26,8 @@ function UserList() {
         // observeQueryがデータの初期取得とリアルタイム更新(Subscription)を自動で行います
         const sub = client.models.UserList.observeQuery().subscribe({
             next: ({ items }) => {
+                console.log("Fetched Items:", items);
+                console.log("Fetched previousUsers:", previousUsers);
                 const sortedItems = [...items].sort((a, b) =>
                     a.userName.localeCompare(b.userName)
                 );
