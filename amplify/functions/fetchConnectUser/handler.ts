@@ -113,6 +113,7 @@ const UPDATE_USER_LIST = `
       correspondingQueue
       outboundQueueListId
       queueList
+      createdAt
       updatedAt
     }
   }
