@@ -78,10 +78,10 @@ const LIST_USER_LIST = `
   query listUserLists {
     listUserLists {
       items {
-        agentId
         id
-        status
         userName
+        agentId
+        status
         queueList
       }
       nextToken
@@ -176,10 +176,6 @@ export const handler: KinesisStreamHandler = async (
             const { signedRequest, body } = await listSignedRequest(
                 LIST_USER_LIST
             );
-            logger.info(`Get signedRequest protocol: ${signedRequest.protocol}`);
-            logger.info(`Get signedRequest hostname: ${signedRequest.hostname}`);
-            logger.info(`Get signedRequest path: ${signedRequest.path}`);
-            logger.info(`Get body: ${body}`);
 
             const response = await axios.post(
                 `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
@@ -188,14 +184,62 @@ export const handler: KinesisStreamHandler = async (
                     headers: signedRequest.headers,
                 }
             );
-
             logger.info(`Get UserList: ${JSON.stringify(response.data)}`);
+            const items = response.data?.data?.listUserLists?.items ?? [];
+            const targetAgentId = String(recordJson.AgentARN.split("/").at(-1));
 
             // 新規作成or更新の判定
             // エージェントIDで取得したリストを検索
+            const isAgentExist = items.some((item: any) => item.agentId === targetAgentId);
 
-            // 新規作成
-            // 更新
+            if (isAgentExist) {
+                logger.info(`エージェントID: ${targetAgentId} はリストに含まれています。`);
+                // 存在する時の処理
+                // 更新
+
+            } else {
+                logger.info(`エージェントID: ${targetAgentId} はリストに含まれていません。`);
+                // 存在しない時の処理
+                // 新規作成
+                const variables = {
+                    input: {
+                        instanceAlias: String(recordJson.InstanceARN),
+                        userName: String(recordJson.CurrentAgentSnapshot.Configuration.Username),
+                        agentId: targetAgentId,
+                        directoryUserId: "-",
+                        firstName: String(recordJson.CurrentAgentSnapshot.Configuration.FirstName),
+                        lastName: String(recordJson.CurrentAgentSnapshot.Configuration.LastName),
+                        emailAddress: "-",
+                        securityProfileIds: "-",
+                        routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile),
+                        hierarchyGroupId: "-",
+                        acwTimeLimit: "-",
+                        autoAccept: String(recordJson.CurrentAgentSnapshot.Configuration.AutoAccept),
+                        phoneType: "-",
+                        deviceId: "-",
+                        inQueueAlert: JSON,
+                        status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
+                        statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
+                        correspondingQueue: "-",
+                        outboundQueueListId: "-",
+                        queueList: JSON
+                    },
+                };
+
+                const { signedRequest, body } = await createSignedRequest(
+                    CREATE_USER_LIST,
+                    variables
+                );
+
+                const responseCreate = await axios.post(
+                    `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
+                    body,
+                    {
+                        headers: signedRequest.headers,
+                    }
+                );
+                logger.info(`Add User: ${JSON.stringify(responseCreate.data)}`);
+            }
 
         } catch (err) {
             logger.error(`An error occurred ${err}`);
@@ -209,34 +253,6 @@ export const handler: KinesisStreamHandler = async (
     return { batchItemFailures: [] };
     /*
     try {
-        if (!process.env.APPSYNC_ENDPOINT) {
-            throw new Error("APPSYNC_ENDPOINT environment variable is not set");
-        }
-
-        const variables = {
-            input: {
-                instanceAlias: recordJson.CurrentAgentSnapshot.AgentStatus,
-                userName: recordJson.CurrentAgentSnapshot.Configuration.Username,
-                agentId: recordJson.AgentARN,
-                //directoryUserId: string,
-                firstName: recordJson.CurrentAgentSnapshot.Configuration.FirstName,
-                lastName: recordJson.CurrentAgentSnapshot.Configuration.LastName,
-                //emailAddress: string,
-                //securityProfileIds: string,
-                routingProfileId: recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile,
-                //hierarchyGroupId: string,
-                //acwTimeLimit: string,
-                autoAccept: recordJson.CurrentAgentSnapshot.Configuration.AutoAccept,
-                //phoneType: string,
-                //deviceId: string,
-                //inQueueAlert: JSON,
-                status: recordJson.CurrentAgentSnapshot.AgentStatus.Name,
-                statusStartTimestamp: recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp,
-                //correspondingQueue: string,
-                //outboundQueueListId: string,
-                //queueList: JSON
-            },
-        };
 
         const { signedRequest, body } = await createSignedRequest(
             CREATE_USER_LIST,
