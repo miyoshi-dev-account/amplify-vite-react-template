@@ -11,42 +11,6 @@ import { useState, useEffect, useRef } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 
-//import { ConnectClient, ListUsersCommand } from "@aws-sdk/client-connect";
-
-/*
-function createData(userName: string, status: string) {
-    return { userName, status };
-}
-
-const rows = [
-    createData('User01', 'offline'),
-    createData('User02', 'available'),
-];
-*/
-
-/*
-function getAgentList() {
-    const client = new ConnectClient(config);
-    const input = { // ListUsersRequest
-      InstanceId: "STRING_VALUE"
-    };
-    const command = new ListUsersCommand(input);
-    const response = await client.send(command);
-
-    if(!response || !response.UserSummaryList || response.UserSummaryList.length = 0 ) {
-        return;
-    }
-
-    response.UserSummaryList.foreach((agent) => 
-        // エージェントのステータス取得方法を確認する
-        // 無かったらStream&DB&APIの組み合わせ
-        rows.appendChild(createData(agent.Username, ));
-        addQuickOption(agent.queueARN)
-    );
-    return;
-}
-*/
-
 // UserListテーブル利用のための定義
 type UserList = Schema["UserList"]["type"];
 const client = generateClient<Schema>();
@@ -59,32 +23,39 @@ function UserList() {
     const previousUsers = useRef<UserList[]>([]);
 
     useEffect(() => {
+        // observeQueryがデータの初期取得とリアルタイム更新(Subscription)を自動で行います
         const sub = client.models.UserList.observeQuery().subscribe({
             next: ({ items }) => {
-                const sortedItems = [...items].sort(
-                    (a, b) =>
-                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                const sortedItems = [...items].sort((a, b) =>
+                    a.userName.localeCompare(b.userName)
                 );
 
                 const newUpdatedIds = new Set<string>();
 
-                // 初回読み込み時は全てのアイテムをハイライト対象とする
                 if (previousUsers.current.length === 0) {
-                    sortedItems.forEach((user) => {
-                        newUpdatedIds.add(user.id);
+                    sortedItems.forEach((newItem) => {
+                        // 対策: newItemがnullでないことを確認してからidにアクセス
+                        if (newItem) {
+                            newUpdatedIds.add(newItem.id);
+                        }
                     });
                 } else {
-                    // 2回目以降は変更があったアイテムのみをハイライト
-                    sortedItems.forEach((user) => {
-                        if (
-                            !previousUsers.current.find(
-                                (user) =>
-                                    user.id === user.id &&
-                                    user.userName === user.userName &&
-                                    user.status === user.status
-                            )
-                        ) {
-                            newUpdatedIds.add(user.id);
+                    // 対策1: 変数名が重複しないように newItem と prevItem に変更
+                    sortedItems.forEach((newItem) => {
+                        // 対策: newItemがnullの場合はこの要素の処理をスキップ
+                        if (!newItem) return;
+
+                        const isUnchanged = previousUsers.current.find(
+                            (prevItem) =>
+                                // 対策: prevItemがnullでないことも確認する
+                                prevItem &&
+                                prevItem.id === newItem.id &&
+                                prevItem.userName === newItem.userName &&
+                                prevItem.status === newItem.status
+                        );
+                        // 変更があった（前回と一致するものが見つからなかった）場合
+                        if (!isUnchanged) {
+                            newUpdatedIds.add(newItem.id);
                         }
                     });
                 }
@@ -93,6 +64,7 @@ function UserList() {
                 setUpdatedIds(newUpdatedIds);
                 previousUsers.current = sortedItems;
 
+                // 3秒後にハイライト状態を解除する
                 setTimeout(() => {
                     setUpdatedIds(new Set());
                 }, 3000);
