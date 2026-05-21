@@ -89,6 +89,35 @@ const LIST_USER_LIST = `
   }
 `;
 
+const UPDATE_USER_LIST = `
+  mutation UpdateUserList($input: UpdateUserListInput!) {
+    updateUserList(input: $input) {
+      id
+      instanceAlias
+      userName
+      agentId
+      directoryUserId
+      firstName
+      lastName
+      emailAddress
+      securityProfileIds
+      routingProfileId
+      hierarchyGroupId
+      acwTimeLimit
+      autoAccept
+      phoneType
+      deviceId
+      inQueueAlert
+      status
+      statusStartTimestamp
+      correspondingQueue
+      outboundQueueListId
+      queueList
+      updatedAt
+    }
+  }
+`;
+
 async function createSignedRequest(query: string, variables: CreateUserListVariables) {
     const url = new URL(process.env.APPSYNC_ENDPOINT!);
     const body = { query, variables };
@@ -185,23 +214,63 @@ export const handler: KinesisStreamHandler = async (
                 }
             );
             logger.info(`Get UserList: ${JSON.stringify(response.data)}`);
+
             const items = response.data?.data?.listUserLists?.items ?? [];
-            const targetAgentId = String(recordJson.AgentARN.split("/").at(-1));
 
             // 新規作成or更新の判定
             // エージェントIDで取得したリストを検索
-            const isAgentExist = items.some((item: any) => item.agentId === targetAgentId);
+            const targetAgentId = String(recordJson.AgentARN.split("/").at(-1));
+            const targetAgent = items.find((item: any) => item.agentId === targetAgentId);
 
-            if (isAgentExist) {
+            if (targetAgent) {
                 logger.info(`エージェントID: ${targetAgentId} はリストに含まれています。`);
                 // 存在する時の処理
                 // 更新
+                const variablesUpdate = {
+                    input: {
+                        id: String(targetAgent.id),
+                        instanceAlias: String(recordJson.InstanceARN),
+                        userName: String(recordJson.CurrentAgentSnapshot.Configuration.Username),
+                        agentId: targetAgentId,
+                        directoryUserId: "-",
+                        firstName: String(recordJson.CurrentAgentSnapshot.Configuration.FirstName),
+                        lastName: String(recordJson.CurrentAgentSnapshot.Configuration.LastName),
+                        emailAddress: "-",
+                        securityProfileIds: "-",
+                        routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.ARN),
+                        hierarchyGroupId: "-",
+                        acwTimeLimit: "-",
+                        autoAccept: String(recordJson.CurrentAgentSnapshot.Configuration.AutoAccept),
+                        phoneType: "-",
+                        deviceId: "-",
+                        inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
+                        status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
+                        statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
+                        correspondingQueue: "-",
+                        outboundQueueListId: "-",
+                        queueList: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues)
+                    },
+                };
+
+                const { signedRequest, body } = await createSignedRequest(
+                    UPDATE_USER_LIST,
+                    variablesUpdate
+                );
+
+                const responseUpdate = await axios.post(
+                    `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
+                    body,
+                    {
+                        headers: signedRequest.headers,
+                    }
+                );
+                logger.info(`Update User: ${JSON.stringify(responseUpdate.data)}`);
 
             } else {
                 logger.info(`エージェントID: ${targetAgentId} はリストに含まれていません。`);
                 // 存在しない時の処理
                 // 新規作成
-                const variables = {
+                const variablesCreate = {
                     input: {
                         instanceAlias: String(recordJson.InstanceARN),
                         userName: String(recordJson.CurrentAgentSnapshot.Configuration.Username),
@@ -228,7 +297,7 @@ export const handler: KinesisStreamHandler = async (
 
                 const { signedRequest, body } = await createSignedRequest(
                     CREATE_USER_LIST,
-                    variables
+                    variablesCreate
                 );
 
                 const responseCreate = await axios.post(
