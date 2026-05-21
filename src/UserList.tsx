@@ -32,6 +32,7 @@ function UserList() {
                     a.userName.localeCompare(b.userName)
                 );
 
+                /*
                 const newUpdatedIds = new Set<string>();
 
                 if (previousUsers.current.length === 0) {
@@ -61,9 +62,10 @@ function UserList() {
                         }
                     });
                 }
+                */
 
                 setUsers(sortedItems);
-                setUpdatedIds(newUpdatedIds);
+                //setUpdatedIds(newUpdatedIds);
                 previousUsers.current = sortedItems;
 
                 // 3秒後にハイライト状態を解除する
@@ -89,7 +91,7 @@ function UserList() {
                 <TableBody>
                     {rows.map((row) => {
                         // 対策: rowがnullの場合は何も表示せずにスキップ
-                        if (!row) return null;
+                        if (!row || !row.id) return null;
                         return (
                             <TableRow key={row.id}>
                                 <TableCell component="th" scope="row">
