@@ -77,11 +77,14 @@ const CREATE_USER_LIST = `
 const LIST_USER_LIST = `
   query listUserLists {
     listUserLists {
-      agentId
-      id
-      status
-      userName
-      queueList    
+      items {
+        agentId
+        id
+        status
+        userName
+        queueList
+      }
+      nextToken
     }
   }
 `;
