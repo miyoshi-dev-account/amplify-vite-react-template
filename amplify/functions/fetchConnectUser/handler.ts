@@ -32,12 +32,12 @@ type UserListInput = {
     autoAccept: string;
     phoneType: string;
     deviceId: string;
-    inQueueAlert: JSON;
+    inQueueAlert: string;
     status: string;
     statusStartTimestamp: string;
     correspondingQueue: string;
     outboundQueueListId: string;
-    queueList: JSON;
+    queueList: string;
 };
 
 type CreateUserListVariables = {
@@ -211,18 +211,18 @@ export const handler: KinesisStreamHandler = async (
                         lastName: String(recordJson.CurrentAgentSnapshot.Configuration.LastName),
                         emailAddress: "-",
                         securityProfileIds: "-",
-                        routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile),
+                        routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.ARN),
                         hierarchyGroupId: "-",
                         acwTimeLimit: "-",
                         autoAccept: String(recordJson.CurrentAgentSnapshot.Configuration.AutoAccept),
                         phoneType: "-",
                         deviceId: "-",
-                        inQueueAlert: JSON,
+                        inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
                         status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
                         statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
                         correspondingQueue: "-",
                         outboundQueueListId: "-",
-                        queueList: JSON
+                        queueList: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues)
                     },
                 };
 
