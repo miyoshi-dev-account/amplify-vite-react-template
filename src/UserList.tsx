@@ -85,14 +85,18 @@ function UserList() {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {rows.map((row) => (
-                        <TableRow key={row.userName}>
-                            <TableCell component="th" scope="row">
-                                {row.userName}
-                            </TableCell>
-                            <TableCell align="right">{row.status}</TableCell>
-                        </TableRow>
-                    ))}
+                    {rows.map((row) => {
+                        // 対策: rowがnullの場合は何も表示せずにスキップ
+                        if (!row) return null;
+                        return (
+                            <TableRow key={row.id}>
+                                <TableCell component="th" scope="row">
+                                    {row.userName}
+                                </TableCell>
+                                <TableCell align="right">{row.status}</TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </TableContainer>
