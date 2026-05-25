@@ -142,6 +142,7 @@ async function getQueueList() {
 
 async function getConnectMetrics(queueId: string) {
     logger.info(`start getConnectMetrics`);
+    logger.info(`get queueId: ${queueId}`);
     // 1. Amazon Connectのメトリクスを取得
     const command = new GetCurrentMetricDataCommand({
         InstanceId: instanceId!,
