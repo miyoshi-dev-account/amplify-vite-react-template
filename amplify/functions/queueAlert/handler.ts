@@ -293,11 +293,14 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const handler = async (event: any) => {
     // Amazon Connectのキューリストを取得
     const allQueues = await getQueueList();
+    logger.info(`get allQueues: ${allQueues}`);
 
     // 1分以内に処理を終えるため、5秒間隔の処理を最大11回(約55秒)実行する
     //for (let i = 0; i < 11; i++) {
     // 全てのキューのメトリクスを更新
     for (const [id, name] of Object.entries(allQueues)) {
+        logger.info(`get allQueues: ${id}`);
+        logger.info(`get allQueues: ${name}`);
         // 1. Amazon Connect の GetCurrentMetricData を実行
         const metrics = await getConnectMetrics(id);
 
