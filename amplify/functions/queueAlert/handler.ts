@@ -148,7 +148,7 @@ async function getConnectMetrics(queueId: string) {
         InstanceId: instanceId!,
         Filters: {
             Queues: [queueId],
-            Channels: ["VOICE"], // 音声通話の待ち呼を取得。必要に応じて "CHAT", "TASK" に変更可能
+            Channels: ["VOICE", "CHAT", "TASK"], // 音声通話の待ち呼を取得。必要に応じて "CHAT", "TASK" に変更可能
         },
         CurrentMetrics: [
             { Name: "CONTACTS_IN_QUEUE", Unit: "COUNT" },   // 待ち呼数
