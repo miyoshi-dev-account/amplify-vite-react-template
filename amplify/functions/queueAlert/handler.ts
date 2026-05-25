@@ -106,14 +106,15 @@ async function createSignedRequest(query: string, variables: CreateUserListVaria
 }
 
 async function getQueueList() {
+    logger.info(`start getQueueList`);
     const allQueues: { id: string, name: string }[] = [];
     try {
         // Amazon Connectのキューリストを取得
-        let nextToken: string | undefined = undefined;
+        //let nextToken: string | undefined = undefined;
         const listCommand = new ListQueuesCommand({
             InstanceId: instanceId,
             QueueTypes: ["STANDARD"], // 標準キューのみを対象とする
-            NextToken: nextToken,
+            //NextToken: nextToken,
         });
         const listResponse = await connectClient.send(listCommand);
         if (listResponse.QueueSummaryList) {
@@ -123,7 +124,7 @@ async function getQueueList() {
                 }
             }
         }
-        nextToken = listResponse.NextToken;
+        //nextToken = listResponse.NextToken;
         return allQueues;
 
     } catch (error) {
@@ -140,6 +141,7 @@ async function getQueueList() {
 };
 
 async function getConnectMetrics(queueId: string) {
+    logger.info(`start getConnectMetrics`);
     // 1. Amazon Connectのメトリクスを取得
     const command = new GetCurrentMetricDataCommand({
         InstanceId: instanceId!,
