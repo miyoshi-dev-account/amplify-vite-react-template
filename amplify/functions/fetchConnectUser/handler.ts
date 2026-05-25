@@ -321,32 +321,4 @@ export const handler: KinesisStreamHandler = async (
 
     logger.info(`Successfully processed ${event.Records.length} records.`);
     return { batchItemFailures: [] };
-    /*
-    try {
-
-        const { signedRequest, body } = await createSignedRequest(
-            CREATE_USER_LIST,
-            variables
-        );
-
-        const response = await axios.post(
-            `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
-            body,
-            {
-                headers: signedRequest.headers,
-            }
-        );
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify(response.data),
-        };
-    } catch (error) {
-        console.error("Error:", error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: error.message }),
-        };
-    }
-    */
 };

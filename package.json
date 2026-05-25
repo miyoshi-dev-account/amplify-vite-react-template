@@ -21,6 +21,7 @@
     "@aws-crypto/sha256-universal": "^5.2.0",
     "@aws-lambda-powertools/logger": "^2.33.0",
     "@aws-sdk/client-appsync": "^3.1050.0",
+    "@aws-sdk/client-connect": "^3.1053.0",
     "@aws-sdk/signature-v4": "^3.370.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
