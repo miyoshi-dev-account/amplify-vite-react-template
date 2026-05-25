@@ -162,7 +162,7 @@ async function getConnectMetrics(queueId: string) {
 
 async function updateAmplifyData(metrics: any) {
     try {
-        logger.info(`get metrics: ${metrics}`);
+        logger.info(`get metrics: ${JSON.stringify(metrics)}`);
         /*
 
         // AppSyncのエンドポイント設定
@@ -299,8 +299,8 @@ export const handler = async (event: any) => {
     //for (let i = 0; i < 11; i++) {
     // 全てのキューのメトリクスを更新
     for (const [id, queue] of Object.entries(allQueues)) {
-        logger.info(`get id: ${id}`);
-        logger.info(`get queue: ${JSON.stringify(queue)}`);
+        //logger.info(`get id: ${id}`);
+        //logger.info(`get queue: ${JSON.stringify(queue)}`);
         // 1. Amazon Connect の GetCurrentMetricData を実行
         const metrics = await getConnectMetrics(queue.id);
 
