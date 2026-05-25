@@ -302,7 +302,7 @@ export const handler = async (event: any) => {
         logger.info(`get id: ${id}`);
         logger.info(`get queue: ${JSON.stringify(queue)}`);
         // 1. Amazon Connect の GetCurrentMetricData を実行
-        const metrics = await getConnectMetrics(id);
+        const metrics = await getConnectMetrics(queue.id);
 
         // 2. Amplify Data (AppSync) に対して更新(Mutation)を実行
         await updateAmplifyData(metrics);
