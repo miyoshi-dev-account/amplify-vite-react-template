@@ -11,8 +11,8 @@ const formatWaitTimeMMSS = (totalSeconds: number) => {
     const convSeconds = totalSeconds / 1000;
     // 分を計算し、文字列にして2桁でゼロ埋め
     const minutes = String(Math.floor(convSeconds / 60)).padStart(2, '0');
-    // 秒数を計算し、文字列にして2桁でゼロ埋め
-    const seconds = String(convSeconds % 60).padStart(2, '0');
+    // 秒数を計算し、文字列にして2桁でゼロ埋め（小数点以下は切り捨て）
+    const seconds = String(Math.floor(convSeconds % 60)).padStart(2, '0');
 
     return `${minutes}:${seconds}`;
 };
@@ -104,7 +104,7 @@ export default function QueueMonitor() {
                                 {queue.contactsInQueue || 0} 人
                             </td>
                             <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                {formatWaitTimeMMSS(queue.oldestContactAge || 0)} 秒
+                                {formatWaitTimeMMSS(queue.oldestContactAge || 0)}
                             </td>
                         </tr>
                     ))}
