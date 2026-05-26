@@ -103,7 +103,7 @@ async function createSignedRequest(query: string, variables: CreateQueueMetricsV
 }
 
 async function getQueueList() {
-    logger.info(`start getQueueList`);
+    //logger.info(`start getQueueList`);
     const allQueues: { id: string, name: string }[] = [];
     try {
         // Amazon Connectのキューリストを取得
@@ -128,8 +128,8 @@ async function getQueueList() {
 };
 
 async function getConnectMetrics(queueId: string) {
-    logger.info(`start getConnectMetrics`);
-    logger.info(`get queueId: ${queueId}`);
+    //logger.info(`start getConnectMetrics`);
+    //logger.info(`get queueId: ${queueId}`);
     // 1. Amazon Connectのメトリクスを取得
     const command = new GetCurrentMetricDataCommand({
         InstanceId: instanceId!,
@@ -211,7 +211,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const handler = async (event: any) => {
     // Amazon Connectのキューリストを取得
     const allQueues = await getQueueList();
-    logger.info(`get allQueues: ${JSON.stringify(allQueues)}`);
+    //logger.info(`get allQueues: ${JSON.stringify(allQueues)}`);
 
     // 1分以内に処理を終えるため、5秒間隔の処理を最大11回(約55秒)実行する
     for (let i = 0; i < 11; i++) {

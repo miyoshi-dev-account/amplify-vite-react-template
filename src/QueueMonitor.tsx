@@ -5,6 +5,18 @@ import type { Schema } from '../amplify/data/resource'; // スキーマのパス
 // Amplify Data クライアントの初期化
 const client = generateClient<Schema>();
 
+// 最大待ち秒数の表示形式を「00:00」に変更
+const formatWaitTimeMMSS = (totalSeconds: number) => {
+    // 保存されている秒数がミリ秒なので、秒に置換
+    const convSeconds = totalSeconds / 1000;
+    // 分を計算し、文字列にして2桁でゼロ埋め
+    const minutes = String(Math.floor(convSeconds / 60)).padStart(2, '0');
+    // 秒数を計算し、文字列にして2桁でゼロ埋め
+    const seconds = String(convSeconds % 60).padStart(2, '0');
+
+    return `${minutes}:${seconds}`;
+};
+
 export default function QueueMonitor() {
     // 待ち呼が発生しているかどうか（通知のON/OFF）を管理するステート
     const [hasWaitingCalls, setHasWaitingCalls] = useState(false);
@@ -92,7 +104,7 @@ export default function QueueMonitor() {
                                 {queue.contactsInQueue || 0} 人
                             </td>
                             <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                                {queue.oldestContactAge || 0} 秒
+                                {formatWaitTimeMMSS(queue.oldestContactAge || 0)} 秒
                             </td>
                         </tr>
                     ))}
