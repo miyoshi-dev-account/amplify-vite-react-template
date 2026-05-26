@@ -157,7 +157,7 @@ async function updateAmplifyData(metrics: any, queueId: string, queueName: strin
         }
 
         // 1. MetricResults の1件目のレコードから Collections 配列を安全に取得（存在しない場合は空配列とする）
-        const collections = metrics.MetricResults[0].Collections[0] || [];
+        const collections = metrics.MetricResults?.[0]?.Collections || [];
 
         // 2. CONTACTS_IN_QUEUE の値を取得する
         const contactsInQueue = collections.find((m: any) => m.Metric?.Name === "CONTACTS_IN_QUEUE")?.Value || 0;
