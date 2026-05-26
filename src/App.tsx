@@ -10,6 +10,7 @@ import loadConfig from './config.ts';
 
 //import { UserList } from './UserList';
 import UserList from './UserList.tsx';
+import QueueMonitor from './QueueMonitor.tsx';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
@@ -769,6 +770,7 @@ function App() {
         <SpaceBetween size="l">
           {renderHeader()}
           {renderContactInfo()}
+          <QueueMonitor />
           <Tabs
             tabs={[
               {

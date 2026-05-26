@@ -214,22 +214,22 @@ export const handler = async (event: any) => {
     logger.info(`get allQueues: ${JSON.stringify(allQueues)}`);
 
     // 1分以内に処理を終えるため、5秒間隔の処理を最大11回(約55秒)実行する
-    //for (let i = 0; i < 11; i++) {
-    // 全てのキューのメトリクスを更新
-    for (const [id, queue] of Object.entries(allQueues)) {
-        // 1. Amazon Connect の GetCurrentMetricData を実行
-        const metrics = await getConnectMetrics(queue.id);
+    for (let i = 0; i < 11; i++) {
+        // 全てのキューのメトリクスを更新
+        for (const [id, queue] of Object.entries(allQueues)) {
+            // 1. Amazon Connect の GetCurrentMetricData を実行
+            const metrics = await getConnectMetrics(queue.id);
 
-        // 2. Amplify Data (AppSync) に対して更新(Mutation)を実行
-        if (metrics.MetricResults?.length) {
-            await updateAmplifyData(metrics, queue.id, queue.name);
-        } else {
-            logger.info(`MetricResults is empty`);
+            // 2. Amplify Data (AppSync) に対して更新(Mutation)を実行
+            if (metrics.MetricResults?.length) {
+                await updateAmplifyData(metrics, queue.id, queue.name);
+            } else {
+                logger.info(`MetricResults is empty`);
+            }
         }
-    }
 
-    // 3. 5秒待機
-    await sleep(5000);
-    //}
+        // 3. 5秒待機
+        await sleep(5000);
+    }
     return "Success";
 };
