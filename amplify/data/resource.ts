@@ -42,6 +42,15 @@ const schema = a.schema({
       queueList: a.json()  // キューによるフィルター用の項目
     })
     .authorization((allow) => [allow.publicApiKey()]),
+
+    QueueMetrics: a
+    .model({
+      queueId: a.string(),
+      queueName: a.string(),
+      contactsInQueue: a.integer(),
+      oldestContactAge: a.integer()
+    })
+    .authorization((allow) => [allow.publicApiKey()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

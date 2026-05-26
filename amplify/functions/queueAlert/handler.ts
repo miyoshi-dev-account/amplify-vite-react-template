@@ -28,31 +28,16 @@ const logger = new Logger({
 });
 
 // AppSync Mutationの入力型定義
-type UserListInput = {
-    instanceAlias: string;
-    userName: string;
-    agentId: string;
-    directoryUserId: string;
-    firstName: string;
-    lastName: string;
-    emailAddress: string;
-    securityProfileIds: string;
-    routingProfileId: string;
-    hierarchyGroupId: string;
-    acwTimeLimit: string;
-    autoAccept: string;
-    phoneType: string;
-    deviceId: string;
-    inQueueAlert: string;
-    status: string;
-    statusStartTimestamp: string;
-    correspondingQueue: string;
-    outboundQueueListId: string;
-    queueList: string;
+type QueueMetricsInput = {
+    id: string;
+    queueId: string;
+    queueName: string;
+    contactsInQueue: number;
+    oldestContactAge: number;
 };
 
-type CreateUserListVariables = {
-    input: UserListInput;
+type CreateQueueMetricsVariables = {
+    input: QueueMetricsInput;
 };
 
 const UPDATE_QUEUE_METRICS = `
@@ -63,6 +48,8 @@ const UPDATE_QUEUE_METRICS = `
       queueName 
       contactsInQueue 
       oldestContactAge
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -75,11 +62,13 @@ const CREATE_QUEUE_METRICS = `
       queueName 
       contactsInQueue 
       oldestContactAge
+      createdAt
+      updatedAt
     }
   }
 `;
 
-async function createSignedRequest(query: string, variables: CreateUserListVariables) {
+async function createSignedRequest(query: string, variables: CreateQueueMetricsVariables) {
     const url = new URL(process.env.APPSYNC_ENDPOINT!);
     const body = { query, variables };
 
@@ -102,7 +91,15 @@ async function createSignedRequest(query: string, variables: CreateUserListVaria
         sha256: Sha256,
     });
 
-    return { signedRequest: await signer.sign(request), body };
+    const signedRequest = await signer.sign(request);
+    return await axios.post(
+        `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
+        body,
+        {
+            headers: signedRequest.headers,
+        }
+    );
+    //return { signedRequest: await signer.sign(request), body };
 }
 
 async function getQueueList() {
@@ -110,11 +107,9 @@ async function getQueueList() {
     const allQueues: { id: string, name: string }[] = [];
     try {
         // Amazon Connectのキューリストを取得
-        //let nextToken: string | undefined = undefined;
         const listCommand = new ListQueuesCommand({
             InstanceId: instanceId,
             QueueTypes: ["STANDARD"], // 標準キューのみを対象とする
-            //NextToken: nextToken,
         });
         const listResponse = await connectClient.send(listCommand);
         if (listResponse.QueueSummaryList) {
@@ -124,20 +119,12 @@ async function getQueueList() {
                 }
             }
         }
-        //nextToken = listResponse.NextToken;
         return allQueues;
 
     } catch (error) {
         console.error("キュー一覧の取得に失敗しました:", error);
         return { statusCode: 500, body: "Failed to list queues" };
     }
-
-    /*
-    if (allQueues.length === 0) {
-        console.log("対象となるキューが存在しませんでした。");
-        return { statusCode: 200, body: "No queues found." };
-    }
-    */
 };
 
 async function getConnectMetrics(queueId: string) {
@@ -160,130 +147,61 @@ async function getConnectMetrics(queueId: string) {
     return connectResponse;
 };
 
-async function updateAmplifyData(metrics: any) {
+async function updateAmplifyData(metrics: any, queueId: string, queueName: string) {
     try {
         logger.info(`get metrics: ${JSON.stringify(metrics)}`);
-        /*
 
         // AppSyncのエンドポイント設定
         if (!process.env.APPSYNC_ENDPOINT) {
             throw new Error("APPSYNC_ENDPOINT environment variable is not set");
         }
 
-        // 保存済みのmetricsの取得
-        const { signedRequest, body } = await listSignedRequest(
-            LIST_USER_LIST
+        // 1. MetricResults の1件目のレコードから Collections 配列を安全に取得（存在しない場合は空配列とする）
+        const collections = metrics.MetricResults[0].Collections[0] || [];
+
+        // 2. CONTACTS_IN_QUEUE の値を取得する
+        const contactsInQueue = collections.find((m: any) => m.Metric?.Name === "CONTACTS_IN_QUEUE")?.Value || 0;
+
+        // 3. OLDEST_CONTACT_AGE の値を取得する
+        const oldestContactAge = collections.find((m: any) => m.Metric?.Name === "OLDEST_CONTACT_AGE")?.Value || 0;
+
+        const variablesUpdate = {
+            input: {
+                id: queueId,
+                queueId: queueId,
+                queueName: queueName,
+                contactsInQueue: contactsInQueue,
+                oldestContactAge: oldestContactAge,
+            },
+        };
+
+        const updateResponse = await createSignedRequest(
+            UPDATE_QUEUE_METRICS,
+            variablesUpdate
         );
 
-        const response = await axios.post(
-            `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
-            body,
-            {
-                headers: signedRequest.headers,
+        if (updateResponse.data.errors) {
+            const errors = updateResponse.data.errors;
+            const isConditionFailed = errors.some((e: any) =>
+                e.errorType === "DynamoDB:ConditionalCheckFailedException" ||
+                e.message.includes("ConditionCheckFailed") ||
+                e.message.includes("Not Found")
+            );
+
+            if (isConditionFailed) {
+                // レコードが存在しないため Create を実行
+                const createResponse = await createSignedRequest(
+                    CREATE_QUEUE_METRICS,
+                    variablesUpdate
+                );
+                if (createResponse.data.errors) {
+                    console.error("Create実行時のエラー:", createResponse.data.errors);
+                }
             }
-        );
-        logger.info(`Get UserList: ${JSON.stringify(response.data)}`);
-
-        const items = response.data?.data?.listUserLists?.items ?? [];
-
-        // 新規作成or更新の判定
-        // エージェントIDで取得したリストを検索
-        const targetAgentId = String(recordJson.AgentARN.split("/").at(-1));
-        const targetAgent = items.find((item: any) => item.agentId === targetAgentId);
-
-        if (targetAgent) {
-            logger.info(`エージェントID: ${targetAgentId} はリストに含まれています。`);
-            // 存在する時の処理
-            // 更新
-            const variablesUpdate = {
-                input: {
-                    id: String(targetAgent.id),
-                    instanceAlias: String(recordJson.InstanceARN),
-                    userName: String(recordJson.CurrentAgentSnapshot.Configuration.Username),
-                    agentId: targetAgentId,
-                    directoryUserId: "-",
-                    firstName: String(recordJson.CurrentAgentSnapshot.Configuration.FirstName),
-                    lastName: String(recordJson.CurrentAgentSnapshot.Configuration.LastName),
-                    emailAddress: "-",
-                    securityProfileIds: "-",
-                    routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.ARN),
-                    hierarchyGroupId: "-",
-                    acwTimeLimit: "-",
-                    autoAccept: String(recordJson.CurrentAgentSnapshot.Configuration.AutoAccept),
-                    phoneType: "-",
-                    deviceId: "-",
-                    inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
-                    status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
-                    statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
-                    correspondingQueue: "-",
-                    outboundQueueListId: "-",
-                    queueList: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues)
-                },
-            };
-
-            const { signedRequest, body } = await createSignedRequest(
-                UPDATE_USER_LIST,
-                variablesUpdate
-            );
-
-            const responseUpdate = await axios.post(
-                `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
-                body,
-                {
-                    headers: signedRequest.headers,
-                }
-            );
-            logger.info(`Update User: ${JSON.stringify(responseUpdate.data)}`);
-
-        } else {
-            logger.info(`エージェントID: ${targetAgentId} はリストに含まれていません。`);
-            // 存在しない時の処理
-            // 新規作成
-            const variablesCreate = {
-                input: {
-                    instanceAlias: String(recordJson.InstanceARN),
-                    userName: String(recordJson.CurrentAgentSnapshot.Configuration.Username),
-                    agentId: targetAgentId,
-                    directoryUserId: "-",
-                    firstName: String(recordJson.CurrentAgentSnapshot.Configuration.FirstName),
-                    lastName: String(recordJson.CurrentAgentSnapshot.Configuration.LastName),
-                    emailAddress: "-",
-                    securityProfileIds: "-",
-                    routingProfileId: String(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.ARN),
-                    hierarchyGroupId: "-",
-                    acwTimeLimit: "-",
-                    autoAccept: String(recordJson.CurrentAgentSnapshot.Configuration.AutoAccept),
-                    phoneType: "-",
-                    deviceId: "-",
-                    inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
-                    status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
-                    statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
-                    correspondingQueue: "-",
-                    outboundQueueListId: "-",
-                    queueList: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues)
-                },
-            };
-
-            const { signedRequest, body } = await createSignedRequest(
-                CREATE_USER_LIST,
-                variablesCreate
-            );
-
-            const responseCreate = await axios.post(
-                `${signedRequest.protocol}//${signedRequest.hostname}${signedRequest.path}`,
-                body,
-                {
-                    headers: signedRequest.headers,
-                }
-            );
-            logger.info(`Add User: ${JSON.stringify(responseCreate.data)}`);
         }
-        */
-        return;
 
-    } catch (err) {
-        logger.error(`An error occurred ${err}`);
-        return;
+    } catch (error) {
+        console.error(`キュー[${queueName}] のAppSync通信エラー:`, error);
     }
 };
 
@@ -299,13 +217,15 @@ export const handler = async (event: any) => {
     //for (let i = 0; i < 11; i++) {
     // 全てのキューのメトリクスを更新
     for (const [id, queue] of Object.entries(allQueues)) {
-        //logger.info(`get id: ${id}`);
-        //logger.info(`get queue: ${JSON.stringify(queue)}`);
         // 1. Amazon Connect の GetCurrentMetricData を実行
         const metrics = await getConnectMetrics(queue.id);
 
         // 2. Amplify Data (AppSync) に対して更新(Mutation)を実行
-        await updateAmplifyData(metrics);
+        if (metrics.MetricResults?.length) {
+            await updateAmplifyData(metrics, queue.id, queue.name);
+        } else {
+            logger.info(`MetricResults is empty`);
+        }
     }
 
     // 3. 5秒待機
