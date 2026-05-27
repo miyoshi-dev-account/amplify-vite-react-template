@@ -465,6 +465,28 @@ function App() {
     }
   };
 
+  const handleTransfer = async (qc: any) => {
+    try {
+      // 転送対象となるアクティブなコンタクトIDが必要です
+      if (!contactInfo.id) {
+        console.warn("転送対象のコンタクトが見つかりません。");
+        return;
+      }
+
+      // Agent Workspace SDK の transfer API を呼び出し [2]
+      await contactClient.transfer(
+        contactInfo.id, // 現在のコンタクトID
+        qc // listQuickConnects で取得したオブジェクトをそのまま渡す
+      );
+
+      console.log(`転送処理に成功しました: ${qc.name}`);
+
+      // 必要に応じて画面上の状態リセットや通知処理を追加
+    } catch (error) {
+      console.error("転送処理に失敗しました:", error);
+    }
+  };
+
   useEffect(() => {
     loadConfig().then(configData => {
       console.log('Config loaded:', configData);
@@ -785,19 +807,41 @@ function App() {
               />
             </FormField>
 
-            {/* 👇 新規追加：クイック接続一覧を表示する領域 👇 */}
+            {/* 👇 修正：クイック接続一覧に転送ボタンを追加 👇 */}
             <FormField label="クイック接続一覧">
               {quickConnects.length > 0 ? (
-                // 取得できた場合はリスト (ul/li) として表示
-                <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+                // CSSの display: 'flex', gap などを利用してリストアイテムをスタイリング [3, 5]
+                <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {quickConnects.map((qc, index) => (
-                    <li key={index} style={{ padding: '4px 0' }}>
-                      {qc.name}
+                    <li key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      border: '1px solid #e5e7eb', // 枠線
+                      borderRadius: '4px',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <span style={{ fontWeight: 'bold' }}>{qc.name}</span>
+
+                      <button
+                        onClick={() => handleTransfer(qc)}
+                        style={{
+                          padding: '6px 16px',
+                          backgroundColor: '#4f46e5', // ボタンの背景色
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                      >
+                        転送
+                      </button>
                     </li>
                   ))}
                 </ul>
               ) : (
-                // クイック接続が存在しない、またはキュー未選択の場合の表示
                 <div style={{ color: '#6b7280', fontSize: '14px' }}>
                   {selectedQueueARN
                     ? "このキューに関連付けられたクイック接続はありません。"
@@ -806,6 +850,7 @@ function App() {
               )}
             </FormField>
             {/* 👆 新規追加部分ここまで 👆 */}
+
           </SpaceBetween>
         </Container>
         <UserList />
