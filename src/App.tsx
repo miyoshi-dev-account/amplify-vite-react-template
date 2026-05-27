@@ -113,7 +113,10 @@ function App() {
   const [phoneNumberWithoutCode, setPhoneNumberWithoutCode] = useState('');
   const [contactAttributes, setContactAttributes] = useState<Record<string, any>>({});
   const [hasActiveContact, setHasActiveContact] = useState(false);
+
+  // クイック接続一覧用
   const [quickConnects, setQuickConnects] = useState<any[]>([]);
+  const [filterType, setFilterType] = useState<string>('ALL');
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -465,6 +468,7 @@ function App() {
     }
   };
 
+  // クイック接続一覧用
   const handleTransfer = async (qc: any) => {
     try {
       // 転送対象となるアクティブなコンタクトIDが必要です
@@ -486,6 +490,17 @@ function App() {
       console.error("転送処理に失敗しました:", error);
     }
   };
+
+  // クイック接続一覧用
+  const filteredQuickConnects = quickConnects.filter((qc) => {
+    // 'ALL' の場合はすべて表示
+    if (filterType === 'ALL') return true;
+
+    // SDKのレスポンス仕様に合わせて種類を判定
+    // ※ 実際のプロパティ名（typeなど）や値（'AGENT'、'QUEUE'等、または connect.EndpointType 定数）は、
+    // APIの戻り値（console.log 等）を確認して適宜調整してください。
+    return qc.type === filterType || qc.quickConnectType === filterType;
+  });
 
   useEffect(() => {
     loadConfig().then(configData => {
@@ -585,6 +600,7 @@ function App() {
     }
   }, [agentInfo]);
 
+  // クイック接続一覧用
   useEffect(() => {
     if (!selectedQueueARN) {
       setQuickConnects([]);
@@ -807,28 +823,45 @@ function App() {
               />
             </FormField>
 
-            {/* 👇 修正：クイック接続一覧に転送ボタンを追加 👇 */}
+            {/* 👇 新規追加：絞り込み条件を選択するドロップダウン 👇 */}
+            <FormField label="クイック接続の種類">
+              <Select
+                selectedOption={{
+                  value: filterType,
+                  label: filterType === 'ALL' ? 'すべて表示' :
+                    filterType === 'AGENT' ? 'エージェントのみ' :
+                      filterType === 'QUEUE' ? 'キューのみ' : '電話番号のみ'
+                }}
+                onChange={({ detail }) => setFilterType(detail.selectedOption.value ?? 'ALL')}
+                options={[
+                  { label: 'すべて表示', value: 'ALL' },
+                  { label: 'エージェントのみ', value: 'AGENT' }, // 状況に合わせて 'agent' や connect.EndpointType.AGENT 等に変更
+                  { label: 'キューのみ', value: 'QUEUE' },
+                  { label: '電話番号のみ', value: 'PHONE_NUMBER' }
+                ]}
+              />
+            </FormField>
+
+            {/* 👇 修正：元の quickConnects ではなく、絞り込み後の filteredQuickConnects を展開する 👇 */}
             <FormField label="クイック接続一覧">
-              {quickConnects.length > 0 ? (
-                // CSSの display: 'flex', gap などを利用してリストアイテムをスタイリング [3, 5]
+              {filteredQuickConnects.length > 0 ? (
                 <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {quickConnects.map((qc, index) => (
+                  {filteredQuickConnects.map((qc, index) => (
                     <li key={index} style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '10px 12px',
-                      border: '1px solid #e5e7eb', // 枠線
+                      border: '1px solid #e5e7eb',
                       borderRadius: '4px',
                       backgroundColor: '#f9fafb'
                     }}>
                       <span style={{ fontWeight: 'bold' }}>{qc.name}</span>
-
                       <button
                         onClick={() => handleTransfer(qc)}
                         style={{
                           padding: '6px 16px',
-                          backgroundColor: '#4f46e5', // ボタンの背景色
+                          backgroundColor: '#4f46e5',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '4px',
@@ -844,7 +877,7 @@ function App() {
               ) : (
                 <div style={{ color: '#6b7280', fontSize: '14px' }}>
                   {selectedQueueARN
-                    ? "このキューに関連付けられたクイック接続はありません。"
+                    ? "該当する種類のクイック接続はありません。"
                     : "キューを選択してください。"}
                 </div>
               )}
