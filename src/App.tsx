@@ -11,6 +11,8 @@ import loadConfig from './config.ts';
 //import { UserList } from './UserList';
 import UserList from './UserList.tsx';
 import QueueMonitor from './QueueMonitor.tsx';
+import type { Schema } from '../amplify/data/resource'; 
+import { generateClient } from 'aws-amplify/data';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
@@ -56,6 +58,9 @@ const connectApp = AmazonConnectApp.init({
 // クライアントのインスタンス化
 const agentClient = new AgentClient();
 const contactClient = new ContactClient();
+
+// クイック接続一覧用
+const client = generateClient<Schema>();
 
 /** 型定義の開始 **/
 // config.jsonの設定値
@@ -117,6 +122,8 @@ function App() {
   // クイック接続一覧用
   const [quickConnects, setQuickConnects] = useState<any[]>([]);
   const [filterType, setFilterType] = useState<string>('ALL');
+  const [appSyncUserList, setAppSyncUserList] = useState<Array<Schema['UserList']['type']>>([]);
+  
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -627,6 +634,18 @@ function App() {
     fetchQuickConnects();
   }, [selectedQueueARN]);
 
+  // クイック接続一覧用
+  useEffect(() => {
+    const subscription = client.models.UserList.observeQuery().subscribe({
+      next: (data) => {
+        // UserList テーブルに変更があるたびにステートが最新化されます
+        setAppSyncUserList(data.items);
+      },
+      error: (error) => console.error("UserListの監視エラー:", error)
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   if (loading || !config) {
     return <div>{t('common.config.loadingMessage')}</div>;
   }
@@ -846,39 +865,70 @@ function App() {
             <FormField label="クイック接続一覧">
               {filteredQuickConnects.length > 0 ? (
                 <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {filteredQuickConnects.map((qc, index) => (
-                    <li key={index} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '4px',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <span style={{ fontWeight: 'bold' }}>{qc.name}</span>
-                      <button
-                        onClick={() => handleTransfer(qc)}
-                        style={{
-                          padding: '6px 16px',
-                          backgroundColor: '#4f46e5',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '14px'
-                        }}
-                      >
-                        転送
-                      </button>
-                    </li>
-                  ))}
+                  {filteredQuickConnects.map((qc, index) => {
+                    
+                    // 💡 3. クイック接続が「エージェント」かどうかを判定
+                    const isAgent = qc.type === 'AGENT' || qc.quickConnectType === 'AGENT';
+                    
+                    // 💡 4. エージェントの場合、AppSyncのデータから該当するユーザー情報を検索
+                    // ※検索キー（qc.name と AppSync側の名前のプロパティ）は実際のデータ構造に合わせて変更してください。
+                    const agentData = isAgent 
+                      ? appSyncUserList.find((user) => user.userName === qc.name) 
+                      : null;
+
+                    return (
+                      <li key={index} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', // 縦方向の中央揃え
+                        gap: '12px',          // 💡 要素（名前とステータス）の間に12pxの隙間を空ける
+                        padding: '10px 12px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '4px',
+                        backgroundColor: '#f9fafb'
+                      }}>
+                        
+                        {/* 左側：クイック接続名 */}
+                        <span style={{ fontWeight: 'bold' }}>{qc.name}</span>
+                        
+                        {/* 💡 中央：エージェントステータスの表示（エージェントの場合のみ） */}
+                        {isAgent && agentData && (
+                          <span style={{
+                            fontSize: '12px',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            // 状態によって背景色と文字色を変える（例：Availableなら緑、それ以外はグレー）
+                            backgroundColor: agentData.status === 'Available' ? '#d1fae5' : '#e5e7eb',
+                            color: agentData.status === 'Available' ? '#065f46' : '#374151',
+                            fontWeight: 'bold'
+                          }}>
+                            {agentData.status}
+                          </span>
+                        )}
+
+                        {/* 右端：転送ボタン */}
+                        <button 
+                          onClick={() => handleTransfer(qc)}
+                          style={{
+                            marginLeft: 'auto', // 💡 自動マージンを指定してボタンを右端に寄せる
+                            padding: '6px 16px',
+                            backgroundColor: '#4f46e5',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                          }}
+                        >
+                          転送
+                        </button>
+
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div style={{ color: '#6b7280', fontSize: '14px' }}>
-                  {selectedQueueARN
-                    ? "該当する種類のクイック接続はありません。"
-                    : "キューを選択してください。"}
+                  該当するクイック接続はありません。
                 </div>
               )}
             </FormField>
@@ -886,7 +936,7 @@ function App() {
 
           </SpaceBetween>
         </Container>
-        <UserList />
+        {/*<UserList />*/}
       </Suspense>
     );
   };
@@ -896,7 +946,7 @@ function App() {
       <div className="app">
         <SpaceBetween size="l">
           {renderHeader()}
-          {renderContactInfo()}
+          {/*{renderContactInfo()}*/}
           <QueueMonitor />
           <Tabs
             tabs={[
