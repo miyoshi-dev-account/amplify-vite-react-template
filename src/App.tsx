@@ -639,7 +639,7 @@ function App() {
     const subscription = client.models.UserList.observeQuery().subscribe({
       next: (data) => {
         // UserList テーブルに変更があるたびにステートが最新化されます
-        setAppSyncUserList(data.items);
+        setAppSyncUserList([...data.items]);
       },
       error: (error) => console.error("UserListの監視エラー:", error)
     });
