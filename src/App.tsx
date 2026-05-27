@@ -868,7 +868,7 @@ function App() {
                   {filteredQuickConnects.map((qc, index) => {
                     
                     // 💡 3. クイック接続が「エージェント」かどうかを判定
-                    const isAgent = qc.type === 'AGENT' || qc.quickConnectType === 'AGENT';
+                    const isAgent = qc.type === 'agent' || qc.quickConnectType === 'agent';
                     
                     // 💡 4. エージェントの場合、AppSyncのデータから該当するユーザー情報を検索
                     // ※検索キー（qc.name と AppSync側の名前のプロパティ）は実際のデータ構造に合わせて変更してください。
