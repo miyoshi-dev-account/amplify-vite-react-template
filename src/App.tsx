@@ -829,8 +829,8 @@ function App() {
                 selectedOption={{
                   value: filterType,
                   label: filterType === 'ALL' ? 'すべて表示' :
-                    filterType === 'AGENT' ? 'エージェントのみ' :
-                      filterType === 'QUEUE' ? 'キューのみ' : '電話番号のみ'
+                    filterType === 'agent' ? 'エージェントのみ' :
+                      filterType === 'queue' ? 'キューのみ' : '電話番号のみ'
                 }}
                 onChange={({ detail }) => setFilterType(detail.selectedOption.value ?? 'ALL')}
                 options={[
