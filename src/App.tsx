@@ -113,6 +113,7 @@ function App() {
   const [phoneNumberWithoutCode, setPhoneNumberWithoutCode] = useState('');
   const [contactAttributes, setContactAttributes] = useState<Record<string, any>>({});
   const [hasActiveContact, setHasActiveContact] = useState(false);
+  const [quickConnects, setQuickConnects] = useState<any[]>([]);
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -562,6 +563,32 @@ function App() {
     }
   }, [agentInfo]);
 
+  useEffect(() => {
+    if (!selectedQueueARN) {
+      setQuickConnects([]);
+      return;
+    }
+
+    const fetchQuickConnects = async () => {
+      try {
+        // Amazon Connect Agent Workspace SDK の API を使用してクイック接続を取得
+        // ※ agent オブジェクトが SDK を通じて利用可能な環境であることを前提とします
+        const response = await agentClient.listQuickConnects([selectedQueueARN]);
+
+        // 取得成功時、レスポンス内の quickConnects 配列をステートにセット [2]
+        setQuickConnects(response.quickConnects || []);
+
+        // ※ もし500件以上あり、次ページがある場合は response.nextToken が返ります [2]
+
+      } catch (error) {
+        console.error("クイック接続の取得に失敗しました:", error);
+        setQuickConnects([]);
+      }
+    };
+
+    fetchQuickConnects();
+  }, [selectedQueueARN]);
+
   if (loading || !config) {
     return <div>{t('common.config.loadingMessage')}</div>;
   }
@@ -757,6 +784,28 @@ function App() {
                 }))}
               />
             </FormField>
+
+            {/* 👇 新規追加：クイック接続一覧を表示する領域 👇 */}
+            <FormField label="クイック接続一覧">
+              {quickConnects.length > 0 ? (
+                // 取得できた場合はリスト (ul/li) として表示
+                <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+                  {quickConnects.map((qc, index) => (
+                    <li key={index} style={{ padding: '4px 0' }}>
+                      {qc.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                // クイック接続が存在しない、またはキュー未選択の場合の表示
+                <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                  {selectedQueueARN
+                    ? "このキューに関連付けられたクイック接続はありません。"
+                    : "キューを選択してください。"}
+                </div>
+              )}
+            </FormField>
+            {/* 👆 新規追加部分ここまで 👆 */}
           </SpaceBetween>
         </Container>
         <UserList />
