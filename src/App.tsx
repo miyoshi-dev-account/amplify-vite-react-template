@@ -835,9 +835,9 @@ function App() {
                 onChange={({ detail }) => setFilterType(detail.selectedOption.value ?? 'ALL')}
                 options={[
                   { label: 'すべて表示', value: 'ALL' },
-                  { label: 'エージェントのみ', value: 'AGENT' }, // 状況に合わせて 'agent' や connect.EndpointType.AGENT 等に変更
-                  { label: 'キューのみ', value: 'QUEUE' },
-                  { label: '電話番号のみ', value: 'PHONE_NUMBER' }
+                  { label: 'エージェントのみ', value: 'agent' }, // 状況に合わせて 'agent' や connect.EndpointType.AGENT 等に変更
+                  { label: 'キューのみ', value: 'queue' },
+                  { label: '電話番号のみ', value: 'phone_number' }
                 ]}
               />
             </FormField>
