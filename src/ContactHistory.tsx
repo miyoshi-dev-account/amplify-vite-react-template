@@ -24,10 +24,10 @@ declare global {
 export default function ContactHistory({ contactClient }: ContactHistoryProps) {
     // ログイン後の通話履歴を保持するステート
     //const [history, setHistory] = useState<ContactRecord[]>([]);
-    // 💡 修正1: 初期化時に sessionStorage から履歴を読み込む関数を渡す
+    // 💡 修正1: 初期化時に localStorage から履歴を読み込む関数を渡す
     const [contactHistory, setContactHistory] = useState<ContactRecord[]>(() => {
         try {
-            const savedData = sessionStorage.getItem('agentContactHistory');
+            const savedData = localStorage.getItem('agentContactHistory');
             return savedData ? JSON.parse(savedData) : [];
         } catch (error) {
             console.error("履歴の読み込みに失敗しました:", error);
@@ -35,10 +35,10 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
         }
     });
 
-    // 💡 修正2: contactHistory が更新されるたびに、自動的に sessionStorage に保存する
+    // 💡 修正2: contactHistory が更新されるたびに、自動的に localStorage に保存する
     useEffect(() => {
         try {
-            sessionStorage.setItem('agentContactHistory', JSON.stringify(contactHistory));
+            localStorage.setItem('agentContactHistory', JSON.stringify(contactHistory));
         } catch (error) {
             console.error("履歴の保存に失敗しました:", error);
         }
@@ -55,6 +55,7 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
             // 実際のオブジェクト構造に合わせて、プロパティでの取得などに変更してください。
             // （例: contactData.contactId、contactData.contact?.contactId など）
 
+            console.log("---------- Get contactData ----------");
             console.log(contactData);
             const currentContactId = contactData.contactId || 'unknown-id';
 
