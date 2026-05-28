@@ -41,7 +41,7 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps, {
         if (!contactClient) return;
 
         // イベント発生時のハンドラー関数
-        const handleContactCleared = (contactData: any) => {
+        const handleStartingAcw = (contactData: any) => {
             // ⚠️ 注意: Agent Workspace SDK では、渡ってくるデータ（contactData）の構造が
             // Streams API (getContactId() などのメソッド) と異なる可能性があります。
             // 実際のオブジェクト構造に合わせて、プロパティでの取得などに変更してください。
@@ -79,12 +79,12 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps, {
         };
 
         // 💡 修正1: onEnded() ではなく onCleared() を使用します
-        contactClient.onCleared(handleContactCleared);
+        contactClient.onStartingAcw(handleStartingAcw);
 
         return () => {
             // 💡 修正2: クリーンアップ（解除）も offCleared() を使用します
-            if (typeof contactClient.offCleared === 'function') {
-                contactClient.offCleared(handleContactCleared);
+            if (typeof contactClient.offStartingAcw === 'function') {
+                contactClient.offStartingAcw(handleStartingAcw);
             }
         };
     }, [contactClient]);
