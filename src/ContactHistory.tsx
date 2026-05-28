@@ -23,7 +23,26 @@ declare global {
 
 export default function ContactHistory({ contactClient }: ContactHistoryProps) {
     // ログイン後の通話履歴を保持するステート
-    const [history, setHistory] = useState<ContactRecord[]>([]);
+    //const [history, setHistory] = useState<ContactRecord[]>([]);
+    // 💡 修正1: 初期化時に sessionStorage から履歴を読み込む関数を渡す
+    const [contactHistory, setContactHistory] = useState<ContactRecord[]>(() => {
+        try {
+            const savedData = sessionStorage.getItem('agentContactHistory');
+            return savedData ? JSON.parse(savedData) : [];
+        } catch (error) {
+            console.error("履歴の読み込みに失敗しました:", error);
+            return [];
+        }
+    });
+
+    // 💡 修正2: contactHistory が更新されるたびに、自動的に sessionStorage に保存する
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('agentContactHistory', JSON.stringify(contactHistory));
+        } catch (error) {
+            console.error("履歴の保存に失敗しました:", error);
+        }
+    }, [contactHistory]);
 
     useEffect(() => {
         // contactClient が存在しない場合は処理を抜ける
@@ -39,7 +58,7 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
             console.log(contactData);
             const currentContactId = contactData.contactId || 'unknown-id';
 
-            setHistory((prevHistory) => {
+            setContactHistory((prevHistory) => {
                 if (prevHistory.some(record => record.contactId === currentContactId)) {
                     return prevHistory;
                 }
@@ -82,7 +101,7 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
                         </tr>
                     </thead>
                     <tbody>
-                        {history.map((record) => (
+                        {contactHistory.map((record) => (
                             <tr key={record.contactId} style={{ borderBottom: '1px solid #e5e7eb' }}>
                                 <td style={{ padding: '8px' }}>{record.endTime}</td>
                                 <td style={{ padding: '8px' }}>{record.type}</td>
