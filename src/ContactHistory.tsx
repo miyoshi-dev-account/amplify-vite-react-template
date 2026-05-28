@@ -49,13 +49,15 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps, {
 
             console.log("---------- Get contactData ----------");
             console.log(contactData);
+            console.log("---------- Get contactInfo ----------");
+            console.log(contactInfo);
             const currentContactId = contactData.contactId || 'unknown-id';
 
             const newRecord: ContactRecord = {
                 contactId: currentContactId,
                 type: contactData.type || '不明',
-                //queueName: contactData.queue?.name || '不明',
-                queueName: contactInfo.queueName || '不明',
+                queueName: contactData.queue?.name || '不明',
+                //queueName: contactInfo.queueName || '不明',
                 endTime: new Date().toLocaleTimeString(),
             };
 
