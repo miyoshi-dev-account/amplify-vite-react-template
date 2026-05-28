@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 interface ContactHistoryProps {
     contactClient: any;
+    contactInfo: any
 }
 
 interface ContactRecord {
@@ -21,7 +22,7 @@ declare global {
 }
 */
 
-export default function ContactHistory({ contactClient }: ContactHistoryProps) {
+export default function ContactHistory({ contactClient }: ContactHistoryProps, { contactInfo }: ContactHistoryProps) {
     // ログイン後の通話履歴を保持するステート
     //const [history, setHistory] = useState<ContactRecord[]>([]);
     // 💡 修正1: 初期化時に localStorage から履歴を読み込む関数を渡す
@@ -53,7 +54,8 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
             const newRecord: ContactRecord = {
                 contactId: currentContactId,
                 type: contactData.type || '不明',
-                queueName: contactData.queue?.name || '不明',
+                //queueName: contactData.queue?.name || '不明',
+                queueName: contactInfo.queueName || '不明',
                 endTime: new Date().toLocaleTimeString(),
             };
 

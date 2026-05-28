@@ -967,7 +967,7 @@ function App() {
                       >
                         通話履歴を開く
                       </Button>
-                      <ContactHistory contactClient={contactClient} />
+                      <ContactHistory contactClient={contactClient} contactInfo={contactInfo} />
                     </Container>
                   </Suspense>
                 )
