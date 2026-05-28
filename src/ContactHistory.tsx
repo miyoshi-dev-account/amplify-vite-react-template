@@ -29,20 +29,26 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
         // contactClient が存在しない場合は処理を抜ける
         if (!contactClient) return;
 
-        // イベント発生時のハンドラー関数を定義
-        const handleContactEnded = (contact: any) => {
+        // イベント発生時のハンドラー関数
+        const handleContactCleared = (contactData: any) => {
+            // ⚠️ 注意: Agent Workspace SDK では、渡ってくるデータ（contactData）の構造が
+            // Streams API (getContactId() などのメソッド) と異なる可能性があります。
+            // 実際のオブジェクト構造に合わせて、プロパティでの取得などに変更してください。
+            // （例: contactData.contactId、contactData.contact?.contactId など）
+
+            console.log(contactData);
+            const currentContactId = contactData.contactId || 'unknown-id';
+
             setHistory((prevHistory) => {
-                // ※ ここに前回ご案内した履歴追加のロジック（重複排除や新しいレコードの作成など）を記述します
-                const currentContactId = contact.getContactId();
                 if (prevHistory.some(record => record.contactId === currentContactId)) {
                     return prevHistory;
                 }
 
-                const queue = contact.getQueue();
                 const newRecord: ContactRecord = {
                     contactId: currentContactId,
-                    type: contact.getType() || '不明',
-                    queueName: queue ? queue.name : '直接着信/不明',
+                    type: contactData.type || '不明',
+                    // queueの取得方法も実際のデータ構造に合わせて調整してください
+                    queueName: contactData.queue?.name || '不明',
                     endTime: new Date().toLocaleTimeString(),
                 };
 
@@ -50,16 +56,16 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
             });
         };
 
-        // 💡 3. 受け取った contactClient を使ってイベントを設定します
-        // ※ contactClient のメソッド名が onEnded などの場合を想定しています
-        contactClient.onEnded(handleContactEnded);
+        // 💡 修正1: onEnded() ではなく onCleared() を使用します
+        contactClient.onCleared(handleContactCleared);
 
-        // クリーンアップ関数（コンポーネントが破棄される際にイベントリスナーを解除する）
         return () => {
-            // もし offEnded のような解除用メソッドがあれば呼び出します
-            // contactClient.offEnded(handleContactEnded);
+            // 💡 修正2: クリーンアップ（解除）も offCleared() を使用します
+            if (typeof contactClient.offCleared === 'function') {
+                contactClient.offCleared(handleContactCleared);
+            }
         };
-    }, [contactClient]); // 依存配列に contactClient を指定
+    }, [contactClient]);
 
     return (
         <div style={{ padding: '10px' }}>
