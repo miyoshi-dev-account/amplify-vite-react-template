@@ -11,8 +11,9 @@ import loadConfig from './config.ts';
 //import { UserList } from './UserList';
 import UserList from './UserList.tsx';
 import QueueMonitor from './QueueMonitor.tsx';
-import type { Schema } from '../amplify/data/resource'; 
+import type { Schema } from '../amplify/data/resource';
 import { generateClient } from 'aws-amplify/data';
+import ContactHistory from './ContactHistory';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
@@ -123,7 +124,7 @@ function App() {
   const [quickConnects, setQuickConnects] = useState<any[]>([]);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [appSyncUserList, setAppSyncUserList] = useState<Array<Schema['UserList']['type']>>([]);
-  
+
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -866,19 +867,19 @@ function App() {
               {filteredQuickConnects.length > 0 ? (
                 <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {filteredQuickConnects.map((qc, index) => {
-                    
+
                     // 💡 3. クイック接続が「エージェント」かどうかを判定
                     const isAgent = qc.type === 'agent' || qc.quickConnectType === 'agent';
-                    
+
                     // 💡 4. エージェントの場合、AppSyncのデータから該当するユーザー情報を検索
                     // ※検索キー（qc.name と AppSync側の名前のプロパティ）は実際のデータ構造に合わせて変更してください。
-                    const agentData = isAgent 
-                      ? appSyncUserList.find((user) => user.userName === qc.name) 
+                    const agentData = isAgent
+                      ? appSyncUserList.find((user) => user.userName === qc.name)
                       : null;
 
                     return (
-                      <li key={index} style={{ 
-                        display: 'flex', 
+                      <li key={index} style={{
+                        display: 'flex',
                         alignItems: 'center', // 縦方向の中央揃え
                         gap: '12px',          // 💡 要素（名前とステータス）の間に12pxの隙間を空ける
                         padding: '10px 12px',
@@ -886,10 +887,10 @@ function App() {
                         borderRadius: '4px',
                         backgroundColor: '#f9fafb'
                       }}>
-                        
+
                         {/* 左側：クイック接続名 */}
                         <span style={{ fontWeight: 'bold' }}>{qc.name}</span>
-                        
+
                         {/* 💡 中央：エージェントステータスの表示（エージェントの場合のみ） */}
                         {isAgent && agentData && (
                           <span style={{
@@ -906,7 +907,7 @@ function App() {
                         )}
 
                         {/* 右端：転送ボタン */}
-                        <button 
+                        <button
                           onClick={() => handleTransfer(qc)}
                           style={{
                             marginLeft: 'auto', // 💡 自動マージンを指定してボタンを右端に寄せる
@@ -966,6 +967,7 @@ function App() {
                       >
                         通話履歴を開く
                       </Button>
+                      <ContactHistory contactClient={contactClient} />
                     </Container>
                   </Suspense>
                 )
