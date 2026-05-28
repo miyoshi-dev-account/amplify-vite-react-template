@@ -35,15 +35,6 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
         }
     });
 
-    // 💡 修正2: contactHistory が更新されるたびに、自動的に localStorage に保存する
-    useEffect(() => {
-        try {
-            localStorage.setItem('agentContactHistory', JSON.stringify(contactHistory));
-        } catch (error) {
-            console.error("履歴の保存に失敗しました:", error);
-        }
-    }, [contactHistory]);
-
     useEffect(() => {
         // contactClient が存在しない場合は処理を抜ける
         if (!contactClient) return;
@@ -59,21 +50,28 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps) {
             console.log(contactData);
             const currentContactId = contactData.contactId || 'unknown-id';
 
-            setContactHistory((prevHistory) => {
-                if (prevHistory.some(record => record.contactId === currentContactId)) {
-                    return prevHistory;
-                }
+            const newRecord: ContactRecord = {
+                contactId: currentContactId,
+                type: contactData.type || '不明',
+                queueName: contactData.queue?.name || '不明',
+                endTime: new Date().toLocaleTimeString(),
+            };
 
-                const newRecord: ContactRecord = {
-                    contactId: currentContactId,
-                    type: contactData.type || '不明',
-                    // queueの取得方法も実際のデータ構造に合わせて調整してください
-                    queueName: contactData.queue?.name || '不明',
-                    endTime: new Date().toLocaleTimeString(),
-                };
+            // 1. ReactのStateではなく、直接ストレージから最新の履歴を取得する
+            const savedData = localStorage.getItem('agentContactHistory');
+            const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
 
-                return [newRecord, ...prevHistory];
-            });
+            // 2. 重複チェック
+            if (!currentHistory.some(record => record.contactId === currentContactId)) {
+                // 新しい履歴を先頭に追加した配列を作成
+                const updatedHistory = [newRecord, ...currentHistory];
+
+                // 💡 3. 【重要】Reactの再描画を待たずに、この瞬間にストレージへ即時保存する
+                localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
+
+                // 4. 画面に表示させるために、ReactのStateにも同じものをセットする
+                setContactHistory(updatedHistory);
+            }
         };
 
         // 💡 修正1: onEnded() ではなく onCleared() を使用します
