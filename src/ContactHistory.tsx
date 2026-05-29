@@ -111,7 +111,10 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps, {
     // 💡 以下、既存の contactClient.onStartingAcw 等の監視処理を置き換えます
     useEffect(() => {
         // window.connect が存在しない場合は実行しない
-        if (!window.connect || !window.connect.contact) return;
+        if (!window.connect || !window.connect.contact) {
+            console.log("----- windows.connect nothing -----");
+            return;
+        }
 
         // 📌 ヘルパー: コンタクトが繋がった「開始時間」をストレージに一時保存する
         // (AgentWorkspaceが着信時に画面を再描画しても消えないようにするため)
