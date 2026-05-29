@@ -221,7 +221,7 @@ export default function ContactHistory({ contactClient }: ContactHistoryProps, {
     return (
         <div style={{ padding: '10px' }}>
             <h3>自分の通話履歴</h3>
-            {history.length > 0 ? (
+            {contactHistory.length > 0 ? (
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '10px', fontSize: '14px' }}>
                     <thead>
                         <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
