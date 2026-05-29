@@ -13,7 +13,7 @@ import UserList from './UserList.tsx';
 import QueueMonitor from './QueueMonitor.tsx';
 import type { Schema } from '../amplify/data/resource';
 import { generateClient } from 'aws-amplify/data';
-import ContactHistory from './ContactHistory';
+import ContactHistory, { ContactRecord } from './ContactHistory';
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
@@ -125,6 +125,16 @@ function App() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [appSyncUserList, setAppSyncUserList] = useState<Array<Schema['UserList']['type']>>([]);
 
+  // 通話履歴用
+  // 履歴データの初期読み込み
+  const [contactHistory, setContactHistory] = useState<ContactRecord[]>(() => {
+    try {
+      const savedData = localStorage.getItem('agentContactHistory');
+      return savedData ? JSON.parse(savedData) : [];
+    } catch (error) {
+      return [];
+    }
+  });
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -510,6 +520,20 @@ function App() {
     return qc.type === filterType || qc.quickConnectType === filterType;
   });
 
+  // 通話履歴用
+  // リダイヤル発信処理
+  const handleRedial = async (phoneNumber: string) => {
+    try {
+      // 💡 VoiceClient の createOutboundCall API で発信する [1]
+      // 引数のフォーマット（オブジェクトか文字列か）は環境に合わせて調整してください
+      //await voiceClientInstance.createOutboundCall({ customerEndpoint: phoneNumber });
+      await voiceClientInstance.createOutboundCall(phoneNumber);
+      console.log(`${phoneNumber} へ発信しました`);
+    } catch (error) {
+      console.error("発信に失敗しました:", error);
+    }
+  };
+
   useEffect(() => {
     loadConfig().then(configData => {
       console.log('Config loaded:', configData);
@@ -645,6 +669,123 @@ function App() {
       error: (error) => console.error("UserListの監視エラー:", error)
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // 通話履歴用
+  useEffect(() => {
+    if (!contactClient) return;
+
+    // 📌 ヘルパー: コンタクトが繋がった「開始時間」をストレージに一時保存する
+    const setStartTime = (cId: string) => {
+      const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      times[cId] = Date.now();
+      localStorage.setItem('contactStartTimes', JSON.stringify(times));
+    };
+
+    // 📌 ヘルパー: 開始時間から通話時間を計算し、一時保存をクリアする
+    const getStartTimeAndDuration = (cId: string) => {
+      const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      const startMs = times[cId];
+      if (!startMs) return { startTime: '不明', duration: '00:00' };
+
+      const startObj = new Date(startMs);
+      const durationSeconds = Math.floor((Date.now() - startMs) / 1000);
+      const m = String(Math.floor(durationSeconds / 60)).padStart(2, '0');
+      const s = String(durationSeconds % 60).padStart(2, '0');
+
+      delete times[cId];
+      localStorage.setItem('contactStartTimes', JSON.stringify(times));
+      return { startTime: startObj.toLocaleTimeString(), duration: `${m}:${s}` };
+    };
+
+    // 📌 ヘルパー: 履歴保存の共通処理
+    const handleSaveHistory = async (contactData: any, isMissed: boolean) => {
+      console.log("---------- Get contactData ----------");
+      console.log(contactData);
+      const contactId = contactData.contactId || 'unknown-id';
+
+      // 💡 1. 各種情報の取得 (SDKのメソッドを呼び出すか、contactDataプロパティから取得)
+      let queueName = '不明';
+      try {
+        const queue = await contactClient.getQueue(contactId);
+        queueName = queue?.name || contactData.queue?.name || '不明';
+      } catch (e) {
+        queueName = contactData.queue?.name || '不明';
+      }
+
+      let phoneNumber = '不明';
+      try {
+        // VoiceClientから初期顧客電話番号を取得するAPIを利用 [1]
+        const initialPhone = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
+        //phoneNumber = initialPhone?.phoneNumber || contactData.customerEndpoint || contactData.phoneNumber || '不明';
+        phoneNumber = initialPhone || contactData.customerEndpoint || contactData.phoneNumber || '不明';
+      } catch (e) {
+        phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
+      }
+
+      // 💡 2. 着信・発信の判定
+      // ※プロパティ名(isInbound, type等)は実際のconsole.log(contactData)を見て適宜変更してください
+      const isInbound = contactData.isInbound ?? (contactData.type === 'INBOUND');
+      let typeStr = '';
+      if (isMissed) {
+        typeStr = isInbound ? '不在着信' : '不在発信';
+      } else {
+        typeStr = isInbound ? '着信' : '発信';
+      }
+
+      // 💡 3. 通話時間と開始時間の計算
+      const { startTime, duration } = getStartTimeAndDuration(contactId);
+
+      const newRecord: ContactRecord = {
+        contactId,
+        type: typeStr,
+        queueName,
+        phoneNumber,
+        startTime: startTime === '不明' && isMissed ? new Date().toLocaleTimeString() : startTime,
+        duration: isMissed ? '00:00' : duration,
+        endTime: new Date().toLocaleTimeString(),
+      };
+
+      // ストレージへ即時保存してState更新
+      const savedData = localStorage.getItem('agentContactHistory');
+      const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
+
+      if (!currentHistory.some(record => record.contactId === contactId)) {
+        const updatedHistory = [newRecord, ...currentHistory];
+        localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
+        setContactHistory(updatedHistory);
+      }
+    };
+
+    // ==========================================
+    // 💡 イベント監視の設定 (Agent Workspace SDK) [1]
+    // ==========================================
+    const onConnectedHandler = async (data: any) => setStartTime(data.contactId);
+    const onAcwHandler = (data: any) => handleSaveHistory(data, false);
+    const onMissedHandler = (data: any) => handleSaveHistory(data, true);
+
+    // ログアウトまたはオフライン検知時のリセット処理
+    const onStateChangedHandler = async (stateData: any) => {
+      // エージェントの状態が「Offline」等（ログアウト時）になったら履歴をクリア
+      if (stateData.name === 'Offline' || stateData.type === 'offline') {
+        localStorage.removeItem('agentContactHistory');
+        localStorage.removeItem('contactStartTimes');
+        setContactHistory([]);
+      }
+    };
+
+    contactClient.onConnected(onConnectedHandler);
+    contactClient.onStartingAcw(onAcwHandler);
+    contactClient.onMissed(onMissedHandler);
+    agentClient.onStateChanged(onStateChangedHandler);
+
+    // クリーンアップ
+    return () => {
+      if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
+      if (typeof contactClient.offStartingAcw === 'function') contactClient.offStartingAcw(onAcwHandler);
+      if (typeof contactClient.offMissed === 'function') contactClient.offMissed(onMissedHandler);
+      if (typeof agentClient.offStateChanged === 'function') agentClient.offStateChanged(onStateChangedHandler);
+    };
   }, []);
 
   if (loading || !config) {
@@ -967,7 +1108,7 @@ function App() {
                       >
                         通話履歴を開く
                       </Button>
-                      <ContactHistory contactClient={contactClient} contactInfo={contactInfo} />
+                      <ContactHistory history={contactHistory} onRedial={handleRedial} />
                     </Container>
                   </Suspense>
                 )
