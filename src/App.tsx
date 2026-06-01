@@ -673,6 +673,35 @@ function App() {
 
   // 通話履歴用
   useEffect(() => {
+    // ストレージの変更を監視し、即座に画面を再描画する処理を追加
+    // 別の画面（iframe）で localStorage が更新されたことを検知する処理
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'agentContactHistory' && e.newValue) {
+        setContactHistory(JSON.parse(e.newValue));
+      }
+    };
+
+    // 同一の画面内でカスタムイベントが発火した際の処理
+    const handleLocalUpdate = () => {
+      const savedData = localStorage.getItem('agentContactHistory');
+      if (savedData) {
+        setContactHistory(JSON.parse(savedData));
+      }
+    };
+
+    // リスナーの登録
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('historyUpdated', handleLocalUpdate);
+
+    // クリーンアップ
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('historyUpdated', handleLocalUpdate);
+    };
+  }, []);
+
+  // 通話履歴用
+  useEffect(() => {
     if (!contactClient) return;
 
     // 📌 ヘルパー: コンタクトが繋がった「開始時間」をストレージに一時保存する
@@ -725,12 +754,28 @@ function App() {
 
       // 💡 2. 着信・発信の判定
       // ※プロパティ名(isInbound, type等)は実際のconsole.log(contactData)を見て適宜変更してください
-      const isInbound = contactData.isInbound ?? (contactData.type === 'INBOUND');
       let typeStr = '';
-      if (isMissed) {
-        typeStr = isInbound ? '不在着信' : '不在発信';
-      } else {
-        typeStr = isInbound ? '着信' : '発信';
+      let isIncomingContact = false; // デフォルトを false (発信) としておく
+
+      try {
+        // 💡 1. コンタクトに関連するすべての参加者リストを取得する
+        // （※SDKの仕様に合わせて、引数は { contactId } または contactId を渡してください）
+        const participants = await contactClient.listParticipants(contactId);
+
+        // 💡 2. 参加者の中に type.value が "inbound" の人がいれば「着信」と判定する
+        isIncomingContact = participants.some((participant: any) =>
+          participant.type?.value === 'inbound'
+        );
+
+        if (isMissed) {
+          typeStr = isIncomingContact ? '不在着信' : '不在発信';
+        } else {
+          typeStr = isIncomingContact ? '着信' : '発信';
+        }
+      } catch (e) {
+        console.warn("参加者情報の取得に失敗しました", e);
+        // エラー等で取得できなかった場合は、安全のため不在着信/着信をフォールバックとする
+        typeStr = isMissed ? '不在着信' : '着信';
       }
 
       // 💡 3. 通話時間と開始時間の計算
