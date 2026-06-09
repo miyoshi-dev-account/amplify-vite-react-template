@@ -496,7 +496,8 @@ function App() {
       }
 
       // Agent Workspace SDK の transfer API を呼び出し [2]
-      await contactClient.transfer(
+      //await contactClient.transfer( // transferはコールド転送のため、APIを変更する
+      await contactClient.addParticipant( // transferはコールド転送のため、APIを変更する
         contactInfo.id, // 現在のコンタクトID
         qc // listQuickConnects で取得したオブジェクトをそのまま渡す
       );
