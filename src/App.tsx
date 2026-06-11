@@ -869,6 +869,7 @@ function App() {
     // コンタクト着信時 (onIncoming) に属性を取得し、通知をセットする処理
     // ==========================================
     const handleIncomingTransfer = async (contactData: any) => {
+      console.log("[handleIncomingTransfer] 処理開始");
       try {
         const contactId = contactData.contactId;
         if (!contactId) {
