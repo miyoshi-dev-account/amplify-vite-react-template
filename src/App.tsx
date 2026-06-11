@@ -904,11 +904,13 @@ function App() {
     };
 
     // 受信時のイベント設定
-    contactClient.onIncoming(handleIncomingTransfer);
+    //contactClient.onConnecting(handleIncomingTransfer);
+    (contactClient as any).onConnecting(handleIncomingTransfer);
 
     // クリーンアップ
     return () => {
-      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(handleIncomingTransfer);
+      //if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(handleIncomingTransfer);
+      if (typeof contactClient.offIncoming === 'function') (contactClient as any).offConnecting(handleIncomingTransfer);
     };
   }, []);
 
