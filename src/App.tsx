@@ -136,6 +136,9 @@ function App() {
     }
   });
 
+  // 転送時の通知用
+  const [transferNotification, setTransferNotification] = useState<string | null>(null);
+
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
       return null;
@@ -487,7 +490,29 @@ function App() {
   };
 
   // クイック接続一覧用
+  const updateAttributesViaBackend = async (contactId: string, customName: string) => {
+    try {
+      // ※ instanceId は Connect の ARN や設定から取得してください
+      const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833";
+
+      const response = await client.queries.updateContactAttributes({
+        instanceId: connectInstanceId,
+        contactId: contactId,
+        customName: customName
+      });
+
+      if (response.data?.success) {
+        console.log(response.data.message);
+      }
+    } catch (error) {
+      console.error("バックエンドAPIの呼び出しに失敗しました:", error);
+      throw error;
+    }
+  };
+
+  // クイック接続一覧用
   const handleTransfer = async (qc: any) => {
+    //const handleTransfer = async (qc: any, customName: string) => {  
     try {
       // 転送対象となるアクティブなコンタクトIDが必要です
       if (!contactInfo.id) {
@@ -495,9 +520,12 @@ function App() {
         return;
       }
 
+      // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
+      //await updateAttributesViaBackend(contactInfo.id, customName);
+      await updateAttributesViaBackend(contactInfo.id, "testCustomName");
+
       // Agent Workspace SDK の transfer API を呼び出し [2]
-      //await contactClient.transfer( // transferはコールド転送のため、APIを変更する
-      await contactClient.addParticipant( // transferはコールド転送のため、APIを変更する
+      await contactClient.addParticipant( // transferはコールド転送のため、addParticipantを利用する
         contactInfo.id, // 現在のコンタクトID
         qc // listQuickConnects で取得したオブジェクトをそのまま渡す
       );
@@ -527,7 +555,6 @@ function App() {
     try {
       // 💡 VoiceClient の createOutboundCall API で発信する [1]
       // 引数のフォーマット（オブジェクトか文字列か）は環境に合わせて調整してください
-      //await voiceClientInstance.createOutboundCall({ customerEndpoint: phoneNumber });
       await voiceClientInstance.createOutboundCall(phoneNumber);
       console.log(`${phoneNumber} へ発信しました`);
     } catch (error) {
@@ -834,6 +861,52 @@ function App() {
     };
   }, []);
 
+  // 転送時の通知用
+  useEffect(() => {
+    if (!contactClient) return;
+
+    // ==========================================
+    // コンタクト着信時 (onIncoming) に属性を取得し、通知をセットする処理
+    // ==========================================
+    const handleIncomingTransfer = async (contactData: any) => {
+      try {
+        const contactId = contactData.contactId;
+        if (!contactId) return;
+
+        // getAttributes API を使用してコンタクト属性を取得 [2]
+        const attributes = await contactClient.getAttributes(contactId, ["TransferCustomName"]);
+
+        // Lambda等で付与された 'TransferCustomName' の取り出し
+        // （SDKの仕様により .value に値が入る場合と直接入る場合があるため両方考慮します）
+        //const transferName = attributes?.TransferCustomName?.value || attributes?.TransferCustomName;
+        const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
+
+        if (transferName) {
+          // 通知メッセージをStateにセットして画面に表示させる
+          setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
+
+          // 10秒後 (10000ミリ秒後) に自動的に通知を消す
+          setTimeout(() => {
+            setTransferNotification(null);
+          }, 10000);
+        } else {
+          console.error("転送先に通知する名前が設定されていませんでした");
+          return;
+        }
+      } catch (error) {
+        console.error("コンタクト属性の取得に失敗しました:", error);
+      }
+    };
+
+    // 受信時のイベント設定
+    contactClient.onIncoming(handleIncomingTransfer);
+
+    // クリーンアップ
+    return () => {
+      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(handleIncomingTransfer);
+    };
+  }, []);
+
   if (loading || !config) {
     return <div>{t('common.config.loadingMessage')}</div>;
   }
@@ -1135,6 +1208,21 @@ function App() {
         <SpaceBetween size="l">
           {renderHeader()}
           {/*{renderContactInfo()}*/}
+          {transferNotification && (
+            <div style={{
+              backgroundColor: '#eef2ff',
+              color: '#4f46e5',
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '16px',
+              border: '1px solid #4f46e5',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              {transferNotification}
+            </div>
+          )}
           <QueueMonitor />
           <Tabs
             tabs={[

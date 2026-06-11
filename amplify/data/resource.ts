@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { updateContactAttributes } from '../functions/updateContactAttributes/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -43,7 +44,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
-    QueueMetrics: a
+  /* メトリクスデータ定義 */
+  QueueMetrics: a
     .model({
       queueId: a.string(),
       queueName: a.string(),
@@ -51,6 +53,22 @@ const schema = a.schema({
       oldestContactAge: a.integer()
     })
     .authorization((allow) => [allow.publicApiKey()]),
+
+  /* 転送時のコンタクト属性設定用API（Lambda）定義 */
+  updateContactAttributes: a
+    .query()
+    .arguments({
+      instanceId: a.string().required(),
+      contactId: a.string().required(),
+      customName: a.string().required(),
+    })
+    .returns(
+      a.customType({
+        success: a.boolean().required(),
+        message: a.string().required(),
+      })
+    )
+    .handler(a.handler.function(updateContactAttributes)), // Lambda関数を紐付け
 });
 
 export type Schema = ClientSchema<typeof schema>;
