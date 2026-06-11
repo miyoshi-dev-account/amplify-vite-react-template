@@ -68,7 +68,8 @@ const schema = a.schema({
         message: a.string().required(),
       })
     )
-    .handler(a.handler.function(updateContactAttributes)), // Lambda関数を紐付け
+    .handler(a.handler.function(updateContactAttributes))
+    .authorization((allow) => [allow.publicApiKey()]), // Lambda関数を紐付け
 });
 
 export type Schema = ClientSchema<typeof schema>;
