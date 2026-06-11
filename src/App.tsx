@@ -868,8 +868,8 @@ function App() {
     // ==========================================
     // コンタクト着信時 (onIncoming) に属性を取得し、通知をセットする処理
     // ==========================================
-    const handleIncomingTransfer = async (contactData: any) => {
-      console.log("[handleIncomingTransfer] 処理開始");
+    const handleIncomingTransfer = async (eventName: string, contactData: any) => {
+      console.log(`[${eventName}] 処理開始`);
       try {
         const contactId = contactData.contactId;
         if (!contactId) {
@@ -902,15 +902,27 @@ function App() {
         console.error("コンタクト属性の取得に失敗しました:", error);
       }
     };
+    // ==========================================
+    // イベントごとに専用のハンドラを作成
+    // ==========================================
+    const onConnectingHandler = (data: any) => handleIncomingTransfer("onConnecting", data);
+    const onPendingHandler = (data: any) => handleIncomingTransfer("onPending", data);
+    const onIncomingHandler = (data: any) => handleIncomingTransfer("onIncoming", data);
+    const onParticipantAddedHandler = (data: any) => handleIncomingTransfer("onParticipantAdded", data);
 
     // 受信時のイベント設定
-    contactClient.onConnecting(handleIncomingTransfer);
-    //(contactClient as any).onConnecting(handleIncomingTransfer);
+    //contactClient.onConnecting(handleIncomingTransfer); // →動いていない
+    contactClient.onConnecting(onConnectingHandler); // →動いていない
+    contactClient.onPending(onPendingHandler);
+    contactClient.onIncoming(onIncomingHandler);
+    contactClient.onParticipantAdded(onParticipantAddedHandler);
 
     // クリーンアップ
     return () => {
-      if (typeof contactClient.offConnecting === 'function') contactClient.offConnecting(handleIncomingTransfer);
-      //if (typeof contactClient.offIncoming === 'function') (contactClient as any).offConnecting(handleIncomingTransfer);
+      if (typeof contactClient.offConnecting === 'function') contactClient.offConnecting(onConnectingHandler);
+      if (typeof contactClient.offPending === 'function') contactClient.offPending(onPendingHandler);
+      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(onIncomingHandler);
+      if (typeof contactClient.offParticipantAdded === 'function') contactClient.offParticipantAdded(onParticipantAddedHandler);
     };
   }, []);
 
