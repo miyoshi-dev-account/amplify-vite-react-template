@@ -871,7 +871,11 @@ function App() {
     const handleIncomingTransfer = async (contactData: any) => {
       try {
         const contactId = contactData.contactId;
-        if (!contactId) return;
+        if (!contactId) {
+          handleIncomingTransfer
+          console.log("[handleIncomingTransfer] コンタクトIDが確認できませんでした");
+          return;
+        }
 
         // getAttributes API を使用してコンタクト属性を取得 [2]
         const attributes = await contactClient.getAttributes(contactId, ["TransferCustomName"]);
@@ -890,7 +894,7 @@ function App() {
             setTransferNotification(null);
           }, 10000);
         } else {
-          console.error("転送先に通知する名前が設定されていませんでした");
+          console.log("転送先に通知する名前が設定されていませんでした");
           return;
         }
       } catch (error) {
