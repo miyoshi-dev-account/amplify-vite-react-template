@@ -138,6 +138,7 @@ function App() {
 
   // 転送時の通知用
   const [transferNotification, setTransferNotification] = useState<string | null>(null);
+  const [transferCustomName, setTransferCustomName] = useState<string>('');
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -520,9 +521,11 @@ function App() {
         return;
       }
 
+      const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
+
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
       //await updateAttributesViaBackend(contactInfo.id, customName);
-      await updateAttributesViaBackend(contactInfo.id, "testCustomName");
+      await updateAttributesViaBackend(contactInfo.id, nameToSet);
 
       // Agent Workspace SDK の transfer API を呼び出し [2]
       await contactClient.addParticipant( // transferはコールド転送のため、addParticipantを利用する
@@ -861,7 +864,7 @@ function App() {
     };
   }, []);
 
-  // 転送時の通知用
+  // 転送時の通知用 ※想定通りに実行できないので、削除する想定
   useEffect(() => {
     if (!contactClient) return;
 
@@ -1092,6 +1095,19 @@ function App() {
       <Suspense fallback={<div>{t('tab.userList.loadingMessage')}</div>}>
         <Container>
           <SpaceBetween size="l">
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center' }}>
+              <label htmlFor="customNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
+                転送時の通知名:
+              </label>
+              <input
+                id="customNameInput"
+                type="text"
+                value={transferCustomName}
+                onChange={(e) => setTransferCustomName(e.target.value)}
+                placeholder="例: 山田太郎"
+                style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
+              />
+            </div>
             <FormField label="所属キュー">
               <Select
                 selectedOption={
