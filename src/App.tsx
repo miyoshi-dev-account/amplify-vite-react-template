@@ -771,6 +771,7 @@ function App() {
         const queue = await contactClient.getQueue(contactId);
         queueName = queue?.name || contactData.queue?.name || '不明';
         if (queueName === '不明') {
+          console.log("---------- キュー名が不明です ----------");
           // 転送通話の場合、キューを取得できないのでコンタクト属性から取得
           //const beforeContactId = await contactClient.getInitialContactId(contactId) || contactId;
           const transAttributes = await contactClient.getAttributes(contactData.initialContactId, ["TransferQueueName"]);
@@ -779,6 +780,7 @@ function App() {
           queueName = queueNameAttr?.value || queueNameAttr || '不明';
         }
       } catch (e) {
+        console.warn("キュー名の取得に失敗しました", e);
         queueName = contactData.queue?.name || '不明';
       }
 
