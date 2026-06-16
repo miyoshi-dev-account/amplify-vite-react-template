@@ -774,7 +774,8 @@ function App() {
           console.log("---------- キュー名が不明です ----------");
           // 転送通話の場合、キューを取得できないのでコンタクト属性から取得
           //const beforeContactId = await contactClient.getInitialContactId(contactId) || contactId;
-          const transAttributes = await contactClient.getAttributes(contactData.initialContactId, ["TransferQueueName"]);
+          //const transAttributes = await contactClient.getAttributes(contactData.initialContactId, ["TransferQueueName"]);
+          const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
           console.log(transAttributes);
           const queueNameAttr = transAttributes?.TransferQueueName as any;
           queueName = queueNameAttr?.value || queueNameAttr || '不明';
