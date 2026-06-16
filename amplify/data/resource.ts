@@ -61,6 +61,7 @@ const schema = a.schema({
       instanceId: a.string().required(),
       contactId: a.string().required(),
       customName: a.string().required(),
+      queueName: a.string().required(),
     })
     .returns(
       a.customType({

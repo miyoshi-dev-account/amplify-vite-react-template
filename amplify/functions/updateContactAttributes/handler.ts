@@ -6,7 +6,7 @@ const client = new ConnectClient({});
 
 export const handler = async (event: Schema["updateContactAttributes"]["functionHandler"]) => {
     // フロントエンドから渡された引数を取得
-    const { instanceId, contactId, customName } = event.arguments;
+    const { instanceId, contactId, customName, queueName } = event.arguments;
 
     try {
         const command = new UpdateContactAttributesCommand({
@@ -14,6 +14,7 @@ export const handler = async (event: Schema["updateContactAttributes"]["function
             InitialContactId: contactId,
             Attributes: {
                 "TransferCustomName": customName, // ここでコンタクト属性を設定
+                "TransferQueueName": queueName,
             },
         });
 

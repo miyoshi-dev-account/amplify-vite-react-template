@@ -491,7 +491,7 @@ function App() {
   };
 
   // クイック接続一覧用
-  const updateAttributesViaBackend = async (contactId: string, customName: string) => {
+  const updateAttributesViaBackend = async (contactId: string, customName: string, queueName: string) => {
     try {
       // ※ instanceId は Connect の ARN や設定から取得してください
       const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833";
@@ -499,7 +499,8 @@ function App() {
       const response = await client.queries.updateContactAttributes({
         instanceId: connectInstanceId,
         contactId: contactId,
-        customName: customName
+        customName: customName,
+        queueName: queueName
       });
 
       if (response.data?.success) {
@@ -525,7 +526,7 @@ function App() {
 
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
       //await updateAttributesViaBackend(contactInfo.id, customName);
-      await updateAttributesViaBackend(contactInfo.id, nameToSet);
+      await updateAttributesViaBackend(contactInfo.id, nameToSet, contactInfo.queueName);
 
       // Agent Workspace SDK の transfer API を呼び出し [2]
       await contactClient.addParticipant( // transferはコールド転送のため、addParticipantを利用する
