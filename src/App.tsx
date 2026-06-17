@@ -876,12 +876,13 @@ function App() {
     };
 
     const onClearedHandler = async (data: any) => {
-      console.log("----- START onMissed -----", data);
+      console.log("----- START onCleared -----", data);
       const contactId = data?.contactId;
       if (!contactId) {
-        console.log("----- NOT START onMissed -----", data);
+        console.log("----- NOT START onCleared -----", data);
         return;
       }
+      console.log("----- CHECK onCleared -----", handledContacts.current.has(contactId));
 
       // Connected（応答）にも Missed（タイムアウト）にもならずに消去された場合
       if (!handledContacts.current.has(contactId)) {
