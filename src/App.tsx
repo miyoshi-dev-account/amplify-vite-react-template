@@ -872,7 +872,15 @@ function App() {
         // タイムアウトしたコンタクトを処理済みとしてマークする
         handledContacts.current.add(contactId);
       }
-      await handleSaveHistory(data, true);
+      try {
+        console.log("onMissed から handleSaveHistory を実行します");
+        // 💡 確実に isMissed = true として履歴保存を実行する
+        await handleSaveHistory(data, true);
+        console.log("onMissed からの履歴保存処理が完了しました");
+      } catch (error) {
+        // 💡 もし handleSaveHistory の内部でエラーが起きていれば、ここでキャッチして赤文字で表示する
+        console.error("履歴保存中に予期せぬエラーが発生しました:", error);
+      }
     };
 
     const onClearedHandler = async (data: any) => {
