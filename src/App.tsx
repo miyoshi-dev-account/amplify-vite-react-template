@@ -789,6 +789,7 @@ function App() {
         //phoneNumber = initialPhone?.phoneNumber || contactData.customerEndpoint || contactData.phoneNumber || '不明';
         phoneNumber = initialPhone || contactData.customerEndpoint || contactData.phoneNumber || '不明';
       } catch (e) {
+        console.warn("顧客電話番号の取得に失敗しました", e);
         phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
       }
 
@@ -830,6 +831,7 @@ function App() {
         duration: isMissed ? '00:00' : duration,
         endTime: new Date().toLocaleTimeString(),
       };
+      console.warn("追加するレコード：", newRecord);
 
       // ストレージへ即時保存してState更新
       const savedData = localStorage.getItem('agentContactHistory');
