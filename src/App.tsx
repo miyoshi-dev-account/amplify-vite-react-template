@@ -820,7 +820,15 @@ function App() {
       }
 
       // 💡 3. 通話時間と開始時間の計算
-      const { startTime, duration } = getStartTimeAndDuration(contactId);
+      let startTime = new Date().toLocaleTimeString();
+      let duration = '00:00';
+      try {
+        const timeData = getStartTimeAndDuration(contactId);
+        startTime = timeData?.startTime || startTime;
+        duration = timeData?.duration || duration;
+      } catch (e) {
+        console.warn("時間情報の取得に失敗しました（すでにコンタクトが切断されている可能性があります）", e);
+      }
 
       const newRecord: ContactRecord = {
         contactId,
@@ -831,7 +839,7 @@ function App() {
         duration: isMissed ? '00:00' : duration,
         endTime: new Date().toLocaleTimeString(),
       };
-      console.warn("追加するレコード：", newRecord);
+      console.log("追加するレコード：", newRecord);
 
       // ストレージへ即時保存してState更新
       const savedData = localStorage.getItem('agentContactHistory');
