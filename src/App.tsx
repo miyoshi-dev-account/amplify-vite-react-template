@@ -885,10 +885,13 @@ function App() {
       console.log("----- CHECK onCleared -----", handledContacts.current.has(contactId));
 
       // Connected（応答）にも Missed（タイムアウト）にもならずに消去された場合
-      if (!handledContacts.current.has(contactId)) {
+      const savedData = localStorage.getItem('agentContactHistory');
+      const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
+      //if (!handledContacts.current.has(contactId)) {
+      if (!currentHistory.some(record => record.contactId === contactId)) {
         console.log("着信中に切断されたコンタクトを検知しました", data);
         // 着信中切断として履歴保存を実行（isMissed = true 扱いとする）
-        handleSaveHistory(data, true);
+        await handleSaveHistory(data, true);
       }
 
       // 処理が終わったらメモリリーク防止のためSetから削除
