@@ -919,7 +919,7 @@ function App() {
     contactClient.onConnected(onConnectedHandler);
     contactClient.onStartingAcw(onAcwHandler);
     contactClient.onMissed(onMissedHandler);
-    contactClient.onCleared(onClearedHandler);
+    //contactClient.onCleared(onClearedHandler);
     agentClient.onStateChanged(onStateChangedHandler);
 
     // クリーンアップ
@@ -927,7 +927,7 @@ function App() {
       if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
       if (typeof contactClient.offStartingAcw === 'function') contactClient.offStartingAcw(onAcwHandler);
       if (typeof contactClient.offMissed === 'function') contactClient.offMissed(onMissedHandler);
-      if (typeof contactClient.offCleared === 'function') contactClient.offCleared(onClearedHandler);
+      //if (typeof contactClient.offCleared === 'function') contactClient.offCleared(onClearedHandler);
       if (typeof agentClient.offStateChanged === 'function') agentClient.offStateChanged(onStateChangedHandler);
     };
   }, []);
