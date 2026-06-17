@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import './i18n';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { AmazonConnectApp, AppContactScope } from "@amazon-connect/app";
 import { AgentClient, /*AgentStateChangedEventData,*/ ContactClient } from "@amazon-connect/contact";
 import { VoiceClient } from "@amazon-connect/voice";
@@ -135,6 +135,7 @@ function App() {
       return [];
     }
   });
+  const handledContacts = useRef<Set<string>>(new Set());
 
   // 転送時の通知用
   const [transferNotification, setTransferNotification] = useState<string | null>(null);
@@ -771,12 +772,8 @@ function App() {
         const queue = await contactClient.getQueue(contactId);
         queueName = queue?.name || contactData.queue?.name || '不明';
         if (queueName === '不明') {
-          console.log("---------- キュー名が不明です ----------");
           // 転送通話の場合、キューを取得できないのでコンタクト属性から取得
-          //const beforeContactId = await contactClient.getInitialContactId(contactId) || contactId;
-          //const transAttributes = await contactClient.getAttributes(contactData.initialContactId, ["TransferQueueName"]);
           const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
-          console.log(transAttributes);
           const queueNameAttr = transAttributes?.TransferQueueName as any;
           queueName = queueNameAttr?.value || queueNameAttr || '不明';
         }
@@ -846,13 +843,44 @@ function App() {
     };
 
     // ==========================================
-    // 💡 イベント監視の設定 (Agent Workspace SDK) [1]
+    // イベント監視の設定
     // ==========================================
-    const onConnectedHandler = async (data: any) => setStartTime(data.contactId);
-    const onAcwHandler = (data: any) => handleSaveHistory(data, false);
-    const onMissedHandler = (data: any) => handleSaveHistory(data, true);
+    const onConnectedHandler = async (data: any) => {
+      const contactId = data?.contactId;
+      if (contactId) {
+        // 応答したコンタクトを処理済みとしてマークする
+        handledContacts.current.add(contactId);
+      }
+      await setStartTime(data.contactId);
+    };
 
-    // ログアウトまたはオフライン検知時のリセット処理
+    const onAcwHandler = (data: any) => handleSaveHistory(data, false);
+
+    const onMissedHandler = async (data: any) => {
+      const contactId = data?.contactId;
+      if (contactId) {
+        // タイムアウトしたコンタクトを処理済みとしてマークする
+        handledContacts.current.add(contactId);
+      }
+      await handleSaveHistory(data, true);
+    };
+
+    const onClearedHandler = async (data: any) => {
+      const contactId = data?.contactId;
+      if (!contactId) return;
+
+      // Connected（応答）にも Missed（タイムアウト）にもならずに消去された場合
+      if (!handledContacts.current.has(contactId)) {
+        console.log("着信中に切断されたコンタクトを検知しました", data);
+        // 着信中切断として履歴保存を実行（isMissed = true 扱いとする）
+        handleSaveHistory(data, true);
+      }
+
+      // 処理が終わったらメモリリーク防止のためSetから削除
+      handledContacts.current.delete(contactId);
+    };
+
+    // ログアウトまたはオフライン検知時のリセット処理 →　動いていないので要修正
     const onStateChangedHandler = async (stateData: any) => {
       // エージェントの状態が「Offline」等（ログアウト時）になったら履歴をクリア
       if (stateData.name === 'Offline' || stateData.type === 'offline') {
@@ -865,6 +893,7 @@ function App() {
     contactClient.onConnected(onConnectedHandler);
     contactClient.onStartingAcw(onAcwHandler);
     contactClient.onMissed(onMissedHandler);
+    contactClient.onCleared(onClearedHandler);
     agentClient.onStateChanged(onStateChangedHandler);
 
     // クリーンアップ
@@ -872,6 +901,7 @@ function App() {
       if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
       if (typeof contactClient.offStartingAcw === 'function') contactClient.offStartingAcw(onAcwHandler);
       if (typeof contactClient.offMissed === 'function') contactClient.offMissed(onMissedHandler);
+      if (typeof contactClient.offCleared === 'function') contactClient.offCleared(onClearedHandler);
       if (typeof agentClient.offStateChanged === 'function') agentClient.offStateChanged(onStateChangedHandler);
     };
   }, []);
