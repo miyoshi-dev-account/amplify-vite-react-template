@@ -766,68 +766,86 @@ function App() {
       console.log(contactData);
       const contactId = contactData.contactId || 'unknown-id';
 
-      // 💡 1. 各種情報の取得 (SDKのメソッドを呼び出すか、contactDataプロパティから取得)
-      let queueName = '不明';
-      try {
-        const queue = await contactClient.getQueue(contactId);
-        queueName = queue?.name || contactData.queue?.name || '不明';
-        if (queueName === '不明') {
-          // 転送通話の場合、キューを取得できないのでコンタクト属性から取得
-          const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
-          const queueNameAttr = transAttributes?.TransferQueueName as any;
-          queueName = queueNameAttr?.value || queueNameAttr || '不明';
-        }
-      } catch (e) {
-        console.warn("キュー名の取得に失敗しました", e);
-        queueName = contactData.queue?.name || '不明';
-      }
-
-      let phoneNumber = '不明';
-      try {
-        // VoiceClientから初期顧客電話番号を取得するAPIを利用 [1]
-        const initialPhone = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
-        //phoneNumber = initialPhone?.phoneNumber || contactData.customerEndpoint || contactData.phoneNumber || '不明';
-        phoneNumber = initialPhone || contactData.customerEndpoint || contactData.phoneNumber || '不明';
-      } catch (e) {
-        console.warn("顧客電話番号の取得に失敗しました", e);
-        phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
-      }
-
-      // 💡 2. 着信・発信の判定
-      // ※プロパティ名(isInbound, type等)は実際のconsole.log(contactData)を見て適宜変更してください
+      // ==========================================
+      // 対策1: contactData から直接取得できる情報は先にセットしておく
+      // ==========================================
+      let queueName = contactData.queue?.name || '不明';
+      let phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
       let typeStr = '';
-      let isIncomingContact = false; // デフォルトを false (発信) としておく
-
-      try {
-        // 💡 1. コンタクトに関連するすべての参加者リストを取得する
-        // （※SDKの仕様に合わせて、引数は { contactId } または contactId を渡してください）
-        const participants = await contactClient.listParticipants(contactId);
-
-        // 💡 2. 参加者の中に type.value が "inbound" の人がいれば「着信」と判定する
-        isIncomingContact = participants.some((participant: any) =>
-          participant.type?.value === 'inbound'
-        );
-
-        if (isMissed) {
-          typeStr = isIncomingContact ? '不在着信' : '不在発信';
-        } else {
-          typeStr = isIncomingContact ? '着信' : '発信';
-        }
-      } catch (e) {
-        console.warn("参加者情報の取得に失敗しました", e);
-        // エラー等で取得できなかった場合は、安全のため不在着信/着信をフォールバックとする
-        typeStr = isMissed ? '不在着信' : '着信';
-      }
-
-      // 💡 3. 通話時間と開始時間の計算
+      let isIncomingContact = true; // デフォルトを着信として扱う
       let startTime = new Date().toLocaleTimeString();
       let duration = '00:00';
-      try {
-        const timeData = getStartTimeAndDuration(contactId);
-        startTime = timeData?.startTime || startTime;
-        duration = timeData?.duration || duration;
-      } catch (e) {
-        console.warn("時間情報の取得に失敗しました（すでにコンタクトが切断されている可能性があります）", e);
+
+      if (!isMissed) {
+        // 💡 1. 各種情報の取得 (SDKのメソッドを呼び出すか、contactDataプロパティから取得)
+        //let queueName = '不明';
+        try {
+          const queue = await contactClient.getQueue(contactId);
+          queueName = queue?.name || contactData.queue?.name || '不明';
+          if (queueName === '不明') {
+            // 転送通話の場合、キューを取得できないのでコンタクト属性から取得
+            const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
+            const queueNameAttr = transAttributes?.TransferQueueName as any;
+            queueName = queueNameAttr?.value || queueNameAttr || '不明';
+          }
+        } catch (e) {
+          console.warn("キュー名の取得に失敗しました", e);
+          queueName = contactData.queue?.name || '不明';
+        }
+
+        //let phoneNumber = '不明';
+        try {
+          // VoiceClientから初期顧客電話番号を取得するAPIを利用 [1]
+          const initialPhone = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
+          //phoneNumber = initialPhone?.phoneNumber || contactData.customerEndpoint || contactData.phoneNumber || '不明';
+          phoneNumber = initialPhone || contactData.customerEndpoint || contactData.phoneNumber || '不明';
+        } catch (e) {
+          console.warn("顧客電話番号の取得に失敗しました", e);
+          phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
+        }
+
+        // 💡 2. 着信・発信の判定
+        // ※プロパティ名(isInbound, type等)は実際のconsole.log(contactData)を見て適宜変更してください
+        //let typeStr = '';
+        //let isIncomingContact = false; // デフォルトを false (発信) としておく
+
+        try {
+          // 💡 1. コンタクトに関連するすべての参加者リストを取得する
+          // （※SDKの仕様に合わせて、引数は { contactId } または contactId を渡してください）
+          const participants = await contactClient.listParticipants(contactId);
+
+          // 💡 2. 参加者の中に type.value が "inbound" の人がいれば「着信」と判定する
+          isIncomingContact = participants.some((participant: any) =>
+            participant.type?.value === 'inbound'
+          );
+
+          //if (isMissed) {
+          //  typeStr = isIncomingContact ? '不在着信' : '不在発信';
+          //} else {
+          //  typeStr = isIncomingContact ? '着信' : '発信';
+          //}
+        } catch (e) {
+          console.warn("参加者情報の取得に失敗しました", e);
+          // エラー等で取得できなかった場合は、安全のため不在着信/着信をフォールバックとする
+          typeStr = isMissed ? '不在着信' : '着信';
+        }
+
+        // 💡 3. 通話時間と開始時間の計算
+        //let startTime = new Date().toLocaleTimeString();
+        //let duration = '00:00';
+        try {
+          const timeData = getStartTimeAndDuration(contactId);
+          startTime = timeData?.startTime || startTime;
+          duration = timeData?.duration || duration;
+        } catch (e) {
+          console.warn("時間情報の取得に失敗しました（すでにコンタクトが切断されている可能性があります）", e);
+        }
+      }
+
+      if (isMissed) {
+        typeStr = isIncomingContact ? '不在着信' : '不在発信';
+      } else {
+        typeStr = isIncomingContact ? '着信' : '発信';
       }
 
       const newRecord: ContactRecord = {
