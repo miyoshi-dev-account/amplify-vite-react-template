@@ -764,6 +764,8 @@ function App() {
     const handleSaveHistory = async (contactData: any, isMissed: boolean) => {
       console.log("---------- Get contactData ----------");
       console.log(contactData);
+      console.log("---------- Get contactInfo ----------");
+      console.log(contactInfo);
       const contactId = contactData.contactId || 'unknown-id';
 
       // ==========================================
