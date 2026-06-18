@@ -778,20 +778,6 @@ function App() {
       let startTime = new Date().toLocaleTimeString();
       let duration = '00:00';
 
-      /*
-      try {
-        const queue = await contactClient.getQueue(contactId);
-        console.log(queue);
-      } catch (e) {
-        console.warn("getQueueに失敗しました", e);
-      }
-      */
-      try {
-        const initialPhone = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
-        console.log(initialPhone);
-      } catch (e) {
-        console.warn("getInitialCustomerPhoneNumberに失敗しました", e);
-      }
       try {
         const participants = await contactClient.listParticipants(contactId);
         console.log(participants);
