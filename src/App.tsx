@@ -792,11 +792,13 @@ function App() {
       let startTime = new Date().toLocaleTimeString();
       let duration = '00:00';
 
-      if (retainedContactInfo.current) {
-        console.log("---------- Get retainedContactInfo ----------");
-        console.log(retainedContactInfo.current);
-        console.log("---------- Get retainedContactInfo ----------");
-        console.log(retainedContactInfo);
+      if (
+        retainedContactInfo.current &&
+        retainedContactInfo.current.queueName && retainedContactInfo.current.queueName !== '-' &&
+        retainedContactInfo.current.phoneNumber && retainedContactInfo.current.phoneNumber !== '-'
+      ) {
+        queueName = retainedContactInfo.current.queueName;
+        phoneNumber = retainedContactInfo.current.phoneNumber;
       }
 
       if (!isMissed) {
