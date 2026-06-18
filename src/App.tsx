@@ -362,11 +362,6 @@ function App() {
 
         setHasActiveContact(true);
 
-        // 通話履歴用の処理追記
-        if (contactInfo) {
-          retainedContactInfo.current = contactInfo;
-        }
-
         // ステータスに応じてメッセージを変更するが、コンタクト情報は維持
         if (status.name === 'AfterCallWork') {
           setOutboundStatus('アフターコールワークを終了してください');
@@ -742,6 +737,18 @@ function App() {
 
   // 通話履歴用
   useEffect(() => {
+    if (
+      contactInfo &&
+      contactInfo.queueName && contactInfo.queueName !== '-' &&
+      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
+    ) {
+      retainedContactInfo.current = contactInfo;
+      console.log("最新のコンタクト情報を retainedContactInfo に保持しました", contactInfo);
+    }
+  }, [contactInfo]);
+
+  // 通話履歴用
+  useEffect(() => {
     if (!contactClient) return;
 
     // 📌 ヘルパー: コンタクトが繋がった「開始時間」をストレージに一時保存する
@@ -788,6 +795,8 @@ function App() {
       if (retainedContactInfo.current) {
         console.log("---------- Get retainedContactInfo ----------");
         console.log(retainedContactInfo.current);
+        console.log("---------- Get retainedContactInfo ----------");
+        console.log(retainedContactInfo);
       }
 
       if (!isMissed) {
