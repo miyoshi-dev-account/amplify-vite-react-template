@@ -136,6 +136,7 @@ function App() {
     }
   });
   const handledContacts = useRef<Set<string>>(new Set());
+  const retainedContactInfo = useRef<ContactData | null>(null);
 
   // 転送時の通知用
   const [transferNotification, setTransferNotification] = useState<string | null>(null);
@@ -358,7 +359,13 @@ function App() {
         // Voice と Chat 両方に対応
         await fetchContactData(initialContactId);
         await fetchContactAttributes(initialContactId);
+
         setHasActiveContact(true);
+
+        // 通話履歴用の処理追記
+        if (contactInfo) {
+          retainedContactInfo.current = contactInfo;
+        }
 
         // ステータスに応じてメッセージを変更するが、コンタクト情報は維持
         if (status.name === 'AfterCallWork') {
@@ -778,12 +785,9 @@ function App() {
       let startTime = new Date().toLocaleTimeString();
       let duration = '00:00';
 
-      try {
-        const contacts = await contactClient.listContacts();
-        console.log("---------- Get listContacts ----------");
-        console.log(contacts);
-      } catch (e) {
-        console.warn("listContactsに失敗しました", e);
+      if (retainedContactInfo.current) {
+        console.log("---------- Get retainedContactInfo ----------");
+        console.log(retainedContactInfo.current);
       }
 
       if (!isMissed) {
