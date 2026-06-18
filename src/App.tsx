@@ -780,9 +780,17 @@ function App() {
 
       try {
         const participants = await contactClient.listParticipants(contactId);
+        console.log("---------- Get listParticipants ----------");
         console.log(participants);
       } catch (e) {
         console.warn("listParticipantsに失敗しました", e);
+      }
+      try {
+        const contacts = await contactClient.listContacts();
+        console.log("---------- Get listContacts ----------");
+        console.log(contacts);
+      } catch (e) {
+        console.warn("listContactsに失敗しました", e);
       }
 
       if (!isMissed) {
