@@ -903,6 +903,12 @@ function App() {
       }
     };
 
+    const onIncomingHandler = async (data: any) => {
+      console.log("---------- onIncoming Get contactInfo ----------");
+      console.log(contactInfo);
+      console.log("---------- onIncoming Get contactInfo ----------");
+    };
+
     const onClearedHandler = async (data: any) => {
       console.log("----- START onCleared -----", data);
       const contactId = data?.contactId;
@@ -939,6 +945,7 @@ function App() {
     contactClient.onConnected(onConnectedHandler);
     contactClient.onStartingAcw(onAcwHandler);
     contactClient.onMissed(onMissedHandler);
+    contactClient.onIncoming(onIncomingHandler);
     //contactClient.onCleared(onClearedHandler);
     agentClient.onStateChanged(onStateChangedHandler);
 
@@ -947,6 +954,7 @@ function App() {
       if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
       if (typeof contactClient.offStartingAcw === 'function') contactClient.offStartingAcw(onAcwHandler);
       if (typeof contactClient.offMissed === 'function') contactClient.offMissed(onMissedHandler);
+      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(onIncomingHandler);
       //if (typeof contactClient.offCleared === 'function') contactClient.offCleared(onClearedHandler);
       if (typeof agentClient.offStateChanged === 'function') agentClient.offStateChanged(onStateChangedHandler);
     };
