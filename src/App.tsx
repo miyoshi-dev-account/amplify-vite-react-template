@@ -532,6 +532,9 @@ function App() {
       //await updateAttributesViaBackend(contactInfo.id, customName);
       await updateAttributesViaBackend(contactInfo.id, nameToSet, contactInfo.queueName);
 
+      // 転送通知用のフラグを設定
+      notifiedTransferContacts.current.add(contactInfo.id);
+
       // Agent Workspace SDK の transfer API を呼び出し [2]
       await contactClient.addParticipant( // transferはコールド転送のため、addParticipantを利用する
         contactInfo.id, // 現在のコンタクトID
@@ -989,8 +992,8 @@ function App() {
     if (
       contactInfo &&
       contactInfo.id && contactInfo.id !== '-' &&
-      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-' &&
-      contactInfo.queueName && contactInfo.queueName == '-'
+      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'// &&
+      //contactInfo.queueName && contactInfo.queueName == '-'
     ) {
       // 通知済みか確認
       if (notifiedTransferContacts.current.has(contactInfo.id)) {
