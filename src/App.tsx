@@ -983,6 +983,50 @@ function App() {
     };
   }, []);
 
+  // 転送時の通知用
+  useEffect(() => {
+    if (
+      contactInfo &&
+      contactInfo.id && contactInfo.id !== '-' &&
+      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
+    ) {
+      const fetchAttributes = async () => {
+        if (
+          contactInfo &&
+          contactInfo.id && contactInfo.id !== '-' &&
+          contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
+        ) {
+          try {
+            // 💡 修正: 過去の仕様に合わせ、引数をオブジェクト形式にし、(contactClient as any) を使用
+            const attributes = await contactClient.getAttributes(contactInfo.id, ["TransferCustomName"]);
+
+            console.log(attributes);
+            //const customNameAttr = attributes?.TransferCustomName as any;
+            //const transferName = customNameAttr?.value || customNameAttr || '不明';
+            const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
+
+            if (transferName) {
+              // 通知メッセージをStateにセットして画面に表示させる
+              setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
+
+              // 10秒後 (10000ミリ秒後) に自動的に通知を消す
+              setTimeout(() => {
+                setTransferNotification(null);
+              }, 10000);
+            } else {
+              console.log("転送先に通知する名前が設定されていませんでした");
+              return;
+            }
+
+          } catch (e) {
+            console.error("転送先通知処理にてエラーが発生しました", e);
+          }
+        }
+      };
+      fetchAttributes();
+    }
+  }, [contactInfo]);
+
   // 転送時の通知用 ※想定通りに実行できないので、削除する想定
   useEffect(() => {
     if (!contactClient) return;
