@@ -141,6 +141,7 @@ function App() {
   // 転送時の通知用
   const [transferNotification, setTransferNotification] = useState<string | null>(null);
   const [transferCustomName, setTransferCustomName] = useState<string>('');
+  const notifiedTransferContacts = useRef<Set<string>>(new Set());
 
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
@@ -990,6 +991,11 @@ function App() {
       contactInfo.id && contactInfo.id !== '-' &&
       contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
     ) {
+      // 通知済みか確認
+      if (notifiedTransferContacts.current.has(contactInfo.id)) {
+        return;
+      }
+
       const fetchAttributes = async () => {
         if (
           contactInfo &&
@@ -1004,6 +1010,9 @@ function App() {
             //const customNameAttr = attributes?.TransferCustomName as any;
             //const transferName = customNameAttr?.value || customNameAttr || '不明';
             const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
+
+            // 切断時に通知されないようにコンタクトIDを登録
+            notifiedTransferContacts.current.add(contactInfo.id);
 
             if (transferName) {
               // 通知メッセージをStateにセットして画面に表示させる
@@ -1026,71 +1035,6 @@ function App() {
       fetchAttributes();
     }
   }, [contactInfo]);
-
-  // 転送時の通知用 ※想定通りに実行できないので、削除する想定
-  useEffect(() => {
-    if (!contactClient) return;
-
-    // ==========================================
-    // コンタクト着信時 (onIncoming) に属性を取得し、通知をセットする処理
-    // ==========================================
-    const handleIncomingTransfer = async (eventName: string, contactData: any) => {
-      console.log(`[${eventName}] 処理開始`);
-      try {
-        const contactId = contactData.contactId;
-        if (!contactId) {
-          handleIncomingTransfer
-          console.log("[handleIncomingTransfer] コンタクトIDが確認できませんでした");
-          return;
-        }
-
-        // getAttributes API を使用してコンタクト属性を取得 [2]
-        const attributes = await contactClient.getAttributes(contactId, ["TransferCustomName"]);
-
-        // Lambda等で付与された 'TransferCustomName' の取り出し
-        // （SDKの仕様により .value に値が入る場合と直接入る場合があるため両方考慮します）
-        //const transferName = attributes?.TransferCustomName?.value || attributes?.TransferCustomName;
-        const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
-
-        if (transferName) {
-          // 通知メッセージをStateにセットして画面に表示させる
-          setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
-
-          // 10秒後 (10000ミリ秒後) に自動的に通知を消す
-          setTimeout(() => {
-            setTransferNotification(null);
-          }, 10000);
-        } else {
-          console.log("転送先に通知する名前が設定されていませんでした");
-          return;
-        }
-      } catch (error) {
-        console.error("コンタクト属性の取得に失敗しました:", error);
-      }
-    };
-    // ==========================================
-    // イベントごとに専用のハンドラを作成
-    // ==========================================
-    const onConnectingHandler = (data: any) => handleIncomingTransfer("onConnecting", data);
-    const onPendingHandler = (data: any) => handleIncomingTransfer("onPending", data);
-    const onIncomingHandler = (data: any) => handleIncomingTransfer("onIncoming", data);
-    const onParticipantAddedHandler = (data: any) => handleIncomingTransfer("onParticipantAdded", data);
-
-    // 受信時のイベント設定
-    //contactClient.onConnecting(handleIncomingTransfer); // →動いていない
-    contactClient.onConnecting(onConnectingHandler); // →動いていない
-    contactClient.onPending(onPendingHandler);
-    contactClient.onIncoming(onIncomingHandler);
-    contactClient.onParticipantAdded(onParticipantAddedHandler);
-
-    // クリーンアップ
-    return () => {
-      if (typeof contactClient.offConnecting === 'function') contactClient.offConnecting(onConnectingHandler);
-      if (typeof contactClient.offPending === 'function') contactClient.offPending(onPendingHandler);
-      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(onIncomingHandler);
-      if (typeof contactClient.offParticipantAdded === 'function') contactClient.offParticipantAdded(onParticipantAddedHandler);
-    };
-  }, []);
 
   if (loading || !config) {
     return <div>{t('common.config.loadingMessage')}</div>;
