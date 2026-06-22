@@ -989,17 +989,8 @@ function App() {
     if (
       contactInfo &&
       contactInfo.id && contactInfo.id !== '-' &&
-      contactInfo.queueName && contactInfo.queueName !== '-' &&
-      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
-    ) {
-      // 転送元エージェントになるような場合、最初に登録しておく
-      notifiedTransferContacts.current.add(contactInfo.id);
-    }
-
-    if (
-      contactInfo &&
-      contactInfo.id && contactInfo.id !== '-' &&
-      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
+      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-' &&
+      contactInfo.queueName && contactInfo.queueName == '-'
     ) {
       // 通知済みか確認
       if (notifiedTransferContacts.current.has(contactInfo.id)) {
@@ -1042,6 +1033,21 @@ function App() {
       };
       fetchAttributes();
     }
+
+    // 転送元で通知されないよう、フラグ設定を行う
+    /*
+    const onConnectedHandler = async (data: any) => {
+      const contactId = data?.contactId;
+      if (contactId) {
+        // 応答したコンタクトを処理済みとしてマークする
+        notifiedTransferContacts.current.add(contactInfo.id);
+      }
+    };
+    contactClient.onConnected(onConnectedHandler);
+    return () => {
+      if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
+    };
+    */
   }, [contactInfo]);
 
   if (loading || !config) {
