@@ -989,6 +989,16 @@ function App() {
     if (
       contactInfo &&
       contactInfo.id && contactInfo.id !== '-' &&
+      contactInfo.queueName && contactInfo.queueName !== '-' &&
+      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
+    ) {
+      // 転送元エージェントになるような場合、最初に登録しておく
+      notifiedTransferContacts.current.add(contactInfo.id);
+    }
+
+    if (
+      contactInfo &&
+      contactInfo.id && contactInfo.id !== '-' &&
       contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
     ) {
       // 通知済みか確認
@@ -1007,16 +1017,14 @@ function App() {
             const attributes = await contactClient.getAttributes(contactInfo.id, ["TransferCustomName"]);
 
             console.log(attributes);
-            //const customNameAttr = attributes?.TransferCustomName as any;
-            //const transferName = customNameAttr?.value || customNameAttr || '不明';
             const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
-
-            // 切断時に通知されないようにコンタクトIDを登録
-            notifiedTransferContacts.current.add(contactInfo.id);
 
             if (transferName) {
               // 通知メッセージをStateにセットして画面に表示させる
               setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
+
+              // 切断時に通知されないようにコンタクトIDを登録
+              notifiedTransferContacts.current.add(contactInfo.id);
 
               // 10秒後 (10000ミリ秒後) に自動的に通知を消す
               setTimeout(() => {
