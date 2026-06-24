@@ -1012,10 +1012,13 @@ function App() {
     } else {
       console.error("------ contactInfoが更新されました（転送先通知用） ------");
       console.error(contactInfo); //着信時点だと空
+      console.error(AppContactScope.CurrentContactId); //着信時点だと空
 
       const eFetchAttributes = async () => {
         try {
           // 転送元で設定したコンタクト属性を取得
+          const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
+          console.error(initialContactId);
           const contacts = await contactClient.listContacts();
           console.log(`Active contacts: ${contacts.length}`);
           contacts.forEach((contact) => {
