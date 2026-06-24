@@ -1007,9 +1007,50 @@ function App() {
         }
       };
       fetchAttributes();
-    } 
-    console.error("------ contactInfoが更新されました ------");
-    console.error(contactInfo);
+    } else {
+      console.error("------ contactInfoが更新されました ------");
+      console.error(contactInfo); //着信時点だと空
+
+      const eFetchAttributes = async () => {
+        try {
+          // 転送元で設定したコンタクト属性を取得
+          const contacts = await contactClient.listContacts();
+          console.log(`Active contacts: ${contacts.length}`);
+          contacts.forEach((contact) => {
+            console.log(`Contact ${contact.contactId}: ${contact.type}`);
+          });
+
+          /*
+          // 転送元で設定したコンタクト属性を取得
+          const attributes = await contactClient.getAttributes(contactId, ["TransferCustomName"]);
+
+          console.log(attributes);
+          const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
+
+          if (transferName) {
+            // 通知メッセージをStateにセットして画面に表示させる
+            setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
+
+            // 切断時に通知されないようにコンタクトIDを登録
+            notifiedTransferContacts.current.add(contactInfo.id);
+
+            // 10秒後 (10000ミリ秒後) に自動的に通知を消す
+            setTimeout(() => {
+              setTransferNotification(null);
+            }, 10000);
+          } else {
+            console.log("転送先に通知する名前が設定されていませんでした");
+            return;
+          }
+            */
+
+        } catch (e) {
+          console.error("転送先通知処理にてエラーが発生しました", e);
+        }
+      };
+      eFetchAttributes();
+    }
+
   }, [contactInfo]);
 
   if (loading || !config) {
