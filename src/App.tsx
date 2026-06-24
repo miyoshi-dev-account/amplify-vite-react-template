@@ -754,6 +754,8 @@ function App() {
 
   // 通話履歴用
   useEffect(() => {
+    console.error("------ contactInfoが更新されました（通話履歴用） ------");
+    console.error(contactInfo); //着信時点だと空
     if (
       contactInfo &&
       contactInfo.queueName && contactInfo.queueName !== '-' &&
@@ -1008,7 +1010,7 @@ function App() {
       };
       fetchAttributes();
     } else {
-      console.error("------ contactInfoが更新されました ------");
+      console.error("------ contactInfoが更新されました（転送先通知用） ------");
       console.error(contactInfo); //着信時点だと空
 
       const eFetchAttributes = async () => {
