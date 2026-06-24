@@ -1007,7 +1007,9 @@ function App() {
         }
       };
       fetchAttributes();
-    }
+    } 
+    console.error("------ contactInfoが更新されました ------");
+    console.error(contactInfo);
   }, [contactInfo]);
 
   if (loading || !config) {
