@@ -530,10 +530,19 @@ function App() {
       const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
 
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
-      if (contactInfo.queueName && contactInfo.queueName !== '-') {
+      if (
+        contactInfo.queueName &&
+        contactInfo.queueName !== '' &&
+        contactInfo.queueName !== 'N/A' &&
+        contactInfo.queueName !== '-'
+      ) {
         await updateAttributesViaBackend(contactInfo.id, nameToSet, contactInfo.queueName);
       } else {
-        await updateAttributesViaBackend(contactInfo.id, nameToSet, retainedContactInfo.current.queueName);
+        // エージェント指定の転送の場合、コンタクト属性からキュー名を取得して指定
+        const transAttributes = await contactClient.getAttributes(contactInfo.id, ["TransferQueueName"]);
+        const queueNameAttr = transAttributes?.TransferQueueName as any;
+        const queueName = queueNameAttr?.value || queueNameAttr || '不明';
+        await updateAttributesViaBackend(contactInfo.id, nameToSet, queueName);
       }
 
       // 転送通知用のフラグを設定
