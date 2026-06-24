@@ -129,7 +129,8 @@ function App() {
   // 履歴データの初期読み込み
   const [contactHistory, setContactHistory] = useState<ContactRecord[]>(() => {
     try {
-      const savedData = localStorage.getItem('agentContactHistory');
+      //const savedData = localStorage.getItem('agentContactHistory');
+      const savedData = sessionStorage.getItem('agentContactHistory');
       return savedData ? JSON.parse(savedData) : [];
     } catch (error) {
       return [];
@@ -529,8 +530,11 @@ function App() {
       const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
 
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
-      //await updateAttributesViaBackend(contactInfo.id, customName);
-      await updateAttributesViaBackend(contactInfo.id, nameToSet, contactInfo.queueName);
+      if (contactInfo.queueName && contactInfo.queueName !== '-') {
+        await updateAttributesViaBackend(contactInfo.id, nameToSet, contactInfo.queueName);
+      } else {
+        await updateAttributesViaBackend(contactInfo.id, nameToSet, retainedContactInfo.current.queueName);
+      }
 
       // 転送通知用のフラグを設定
       notifiedTransferContacts.current.add(contactInfo.id);
@@ -681,7 +685,6 @@ function App() {
     const fetchQuickConnects = async () => {
       try {
         // Amazon Connect Agent Workspace SDK の API を使用してクイック接続を取得
-        // ※ agent オブジェクトが SDK を通じて利用可能な環境であることを前提とします
         const response = await agentClient.listQuickConnects([selectedQueueARN]);
 
         // 取得成功時、レスポンス内の quickConnects 配列をステートにセット [2]
@@ -722,7 +725,8 @@ function App() {
 
     // 同一の画面内でカスタムイベントが発火した際の処理
     const handleLocalUpdate = () => {
-      const savedData = localStorage.getItem('agentContactHistory');
+      //const savedData = localStorage.getItem('agentContactHistory');
+      const savedData = sessionStorage.getItem('agentContactHistory');
       if (savedData) {
         setContactHistory(JSON.parse(savedData));
       }
@@ -755,16 +759,19 @@ function App() {
   useEffect(() => {
     if (!contactClient) return;
 
-    // 📌 ヘルパー: コンタクトが繋がった「開始時間」をストレージに一時保存する
+    // コンタクトが繋がった「開始時間」をストレージに一時保存する
     const setStartTime = (cId: string) => {
-      const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      //const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      const times = JSON.parse(sessionStorage.getItem('contactStartTimes') || '{}');
       times[cId] = Date.now();
-      localStorage.setItem('contactStartTimes', JSON.stringify(times));
+      //localStorage.setItem('contactStartTimes', JSON.stringify(times));
+      sessionStorage.setItem('contactStartTimes', JSON.stringify(times));
     };
 
-    // 📌 ヘルパー: 開始時間から通話時間を計算し、一時保存をクリアする
+    // 開始時間から通話時間を計算し、一時保存をクリアする
     const getStartTimeAndDuration = (cId: string) => {
-      const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      //const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
+      const times = JSON.parse(sessionStorage.getItem('contactStartTimes') || '{}');
       const startMs = times[cId];
       if (!startMs) return { startTime: '不明', duration: '00:00' };
 
@@ -774,7 +781,8 @@ function App() {
       const s = String(durationSeconds % 60).padStart(2, '0');
 
       delete times[cId];
-      localStorage.setItem('contactStartTimes', JSON.stringify(times));
+      //localStorage.setItem('contactStartTimes', JSON.stringify(times));
+      sessionStorage.setItem('contactStartTimes', JSON.stringify(times));
       return { startTime: startObj.toLocaleTimeString(), duration: `${m}:${s}` };
     };
 
@@ -786,9 +794,7 @@ function App() {
       console.log(contactInfo);
       const contactId = contactData.contactId || 'unknown-id';
 
-      // ==========================================
-      // 対策1: contactData から直接取得できる情報は先にセットしておく
-      // ==========================================
+      // 各種情報の初期化
       let queueName = contactData.queue?.name || '不明';
       let phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
       let typeStr = '';
@@ -806,8 +812,7 @@ function App() {
       }
 
       if (!isMissed) {
-        // 💡 1. 各種情報の取得 (SDKのメソッドを呼び出すか、contactDataプロパティから取得)
-        //let queueName = '不明';
+        // キュー名の取得
         try {
           const queue = await contactClient.getQueue(contactId);
           queueName = queue?.name || contactData.queue?.name || '不明';
@@ -822,46 +827,33 @@ function App() {
           queueName = contactData.queue?.name || '不明';
         }
 
-        //let phoneNumber = '不明';
+        // 電話番号の取得
         try {
           // VoiceClientから初期顧客電話番号を取得するAPIを利用 [1]
           const initialPhone = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
-          //phoneNumber = initialPhone?.phoneNumber || contactData.customerEndpoint || contactData.phoneNumber || '不明';
           phoneNumber = initialPhone || contactData.customerEndpoint || contactData.phoneNumber || '不明';
         } catch (e) {
           console.warn("顧客電話番号の取得に失敗しました", e);
           phoneNumber = contactData.customerEndpoint || contactData.phoneNumber || '不明';
         }
 
-        // 💡 2. 着信・発信の判定
-        // ※プロパティ名(isInbound, type等)は実際のconsole.log(contactData)を見て適宜変更してください
-        //let typeStr = '';
-        //let isIncomingContact = false; // デフォルトを false (発信) としておく
-
+        // 着信・発信の判定
         try {
-          // 💡 1. コンタクトに関連するすべての参加者リストを取得する
-          // （※SDKの仕様に合わせて、引数は { contactId } または contactId を渡してください）
+          // コンタクトに関連するすべての参加者リストを取得する
           const participants = await contactClient.listParticipants(contactId);
 
-          // 💡 2. 参加者の中に type.value が "inbound" の人がいれば「着信」と判定する
+          // 参加者の中に type.value が "inbound" の人がいれば「着信」と判定する
           isIncomingContact = participants.some((participant: any) =>
             participant.type?.value === 'inbound'
           );
 
-          //if (isMissed) {
-          //  typeStr = isIncomingContact ? '不在着信' : '不在発信';
-          //} else {
-          //  typeStr = isIncomingContact ? '着信' : '発信';
-          //}
         } catch (e) {
           console.warn("参加者情報の取得に失敗しました", e);
           // エラー等で取得できなかった場合は、安全のため不在着信/着信をフォールバックとする
           typeStr = isMissed ? '不在着信' : '着信';
         }
 
-        // 💡 3. 通話時間と開始時間の計算
-        //let startTime = new Date().toLocaleTimeString();
-        //let duration = '00:00';
+        // 通話時間と開始時間の計算
         try {
           const timeData = getStartTimeAndDuration(contactId);
           startTime = timeData?.startTime || startTime;
@@ -889,12 +881,14 @@ function App() {
       console.log("追加するレコード：", newRecord);
 
       // ストレージへ即時保存してState更新
-      const savedData = localStorage.getItem('agentContactHistory');
+      //const savedData = localStorage.getItem('agentContactHistory');
+      const savedData = sessionStorage.getItem('agentContactHistory');
       const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
 
       if (!currentHistory.some(record => record.contactId === contactId)) {
         const updatedHistory = [newRecord, ...currentHistory];
-        localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
+        //localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
+        sessionStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
         setContactHistory(updatedHistory);
       }
     };
@@ -930,41 +924,14 @@ function App() {
       }
     };
 
-    const onIncomingHandler = async (data: any) => {
-      console.log("---------- onIncoming Get contactInfo ----------");
-      console.log(contactInfo);
-      console.log("---------- onIncoming Get contactInfo ----------");
-    };
-
-    const onClearedHandler = async (data: any) => {
-      console.log("----- START onCleared -----", data);
-      const contactId = data?.contactId;
-      if (!contactId) {
-        console.log("----- NOT START onCleared -----", data);
-        return;
-      }
-      console.log("----- CHECK onCleared -----", handledContacts.current.has(contactId));
-
-      // Connected（応答）にも Missed（タイムアウト）にもならずに消去された場合
-      const savedData = localStorage.getItem('agentContactHistory');
-      const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
-      //if (!handledContacts.current.has(contactId)) {
-      if (!currentHistory.some(record => record.contactId === contactId)) {
-        console.log("着信中に切断されたコンタクトを検知しました", data);
-        // 着信中切断として履歴保存を実行（isMissed = true 扱いとする）
-        await handleSaveHistory(data, true);
-      }
-
-      // 処理が終わったらメモリリーク防止のためSetから削除
-      handledContacts.current.delete(contactId);
-    };
-
     // ログアウトまたはオフライン検知時のリセット処理 →　動いていないので要修正
     const onStateChangedHandler = async (stateData: any) => {
       // エージェントの状態が「Offline」等（ログアウト時）になったら履歴をクリア
       if (stateData.name === 'Offline' || stateData.type === 'offline') {
         localStorage.removeItem('agentContactHistory');
+        sessionStorage.removeItem('agentContactHistory');
         localStorage.removeItem('contactStartTimes');
+        sessionStorage.removeItem('contactStartTimes');
         setContactHistory([]);
       }
     };
@@ -972,8 +939,6 @@ function App() {
     contactClient.onConnected(onConnectedHandler);
     contactClient.onStartingAcw(onAcwHandler);
     contactClient.onMissed(onMissedHandler);
-    contactClient.onIncoming(onIncomingHandler);
-    //contactClient.onCleared(onClearedHandler);
     agentClient.onStateChanged(onStateChangedHandler);
 
     // クリーンアップ
@@ -981,8 +946,6 @@ function App() {
       if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
       if (typeof contactClient.offStartingAcw === 'function') contactClient.offStartingAcw(onAcwHandler);
       if (typeof contactClient.offMissed === 'function') contactClient.offMissed(onMissedHandler);
-      if (typeof contactClient.offIncoming === 'function') contactClient.offIncoming(onIncomingHandler);
-      //if (typeof contactClient.offCleared === 'function') contactClient.offCleared(onClearedHandler);
       if (typeof agentClient.offStateChanged === 'function') agentClient.offStateChanged(onStateChangedHandler);
     };
   }, []);
@@ -1036,21 +999,6 @@ function App() {
       };
       fetchAttributes();
     }
-
-    // 転送元で通知されないよう、フラグ設定を行う
-    /*
-    const onConnectedHandler = async (data: any) => {
-      const contactId = data?.contactId;
-      if (contactId) {
-        // 応答したコンタクトを処理済みとしてマークする
-        notifiedTransferContacts.current.add(contactInfo.id);
-      }
-    };
-    contactClient.onConnected(onConnectedHandler);
-    return () => {
-      if (typeof contactClient.offConnected === 'function') contactClient.offConnected(onConnectedHandler);
-    };
-    */
   }, [contactInfo]);
 
   if (loading || !config) {
