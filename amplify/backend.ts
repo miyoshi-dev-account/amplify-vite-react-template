@@ -5,6 +5,7 @@ import { data } from './data/resource';
 import { fetchConnectUser } from "./functions/fetchConnectUser/resource";
 import { queueAlert } from "./functions/queueAlert/resource";
 import { updateContactAttributes } from './functions/updateContactAttributes/resource';
+import { getContactInfo } from './functions/getContactInfo/resource';
 
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -21,6 +22,7 @@ const backend = defineBackend({
   fetchConnectUser,
   queueAlert,
   updateContactAttributes,
+  getContactInfo,
 });
 
 // --- ユーザーリスト取得用のLambda関数(fetchConnectUser)の定義 ---
@@ -101,13 +103,26 @@ new events.Rule(eventStack, 'MetricsPollingRule', {
 
 
 
-// --- 転送時、転送先に通知するコンタクト属性を設定するLambda関数(queueAlert)の定義 ---
+// --- 転送時、転送先に通知するコンタクト属性を設定するLambda関数(updateContactAttributes)の定義 ---
 
 backend.updateContactAttributes.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: ['connect:UpdateContactAttributes'],
     // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
     // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
-    resources: ['*'], 
+    resources: ['*'],
+  })
+);
+
+
+
+// --- 通話履歴用にコンタクト情報を取得するLambda関数(getContactInfo)の定義 ---
+
+backend.getContactInfo.resources.lambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: ['connect:DescribeContact', 'connect:GetContactAttributes'],
+    // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
+    // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
+    resources: ['*'],
   })
 );

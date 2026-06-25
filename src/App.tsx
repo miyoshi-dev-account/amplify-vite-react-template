@@ -874,18 +874,37 @@ function App() {
         }
       } else {
         try {
+          const connectInstanceId = "xxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"; // ConnectのインスタンスID
           const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
-          console.log("getInitialContactIdによる転送元コンタクトID取得", initialContactId);
 
-          const queue = await contactClient.getQueue(initialContactId);
-          console.log("getQueueによるキュー取得", queue);
+          if (
+            initialContactId &&
+            initialContactId !== '-' && initialContactId !== 'unknown-id'
+          ) {
+            // 転送元コンタクトIDの参照
+            const responseCurrent = await client.queries.getContactInfo({
+              instanceId: connectInstanceId,
+              contactId: initialContactId,
+            });
+            console.log("転送元コンタクト情報:", initialContactId);
+            console.log(responseCurrent);
+          }
 
-          const transAttributes = await contactClient.getAttributes(initialContactId, ["TransferQueueName"]);
-          const queueNameAttr = transAttributes?.TransferQueueName as any;
-          queueName = queueNameAttr?.value || queueNameAttr || '不明';
-          console.log("getAttributesによるキュー取得", queueName);
+          if (
+            contactId &&
+            contactId !== '-' && contactId !== 'unknown-id' &&
+            contactId !== initialContactId
+          ) {
+            // 転送先コンタクトIDの参照
+            const responseTrans = await client.queries.getContactInfo({
+              instanceId: connectInstanceId,
+              contactId: contactId,
+            });
+            console.log("転送先コンタクト情報:", contactId);
+            console.log(responseTrans);
+          }
         } catch (e) {
-          console.warn("初期コンタクトIDの参照エラー");
+          console.warn("コンタクト情報の参照APIエラー", e);
         }
       }
 
