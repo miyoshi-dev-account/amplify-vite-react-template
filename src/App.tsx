@@ -883,30 +883,31 @@ function App() {
           console.log("転送元コンタクトID", initialContactId);
 
           if (
-            initialContactId &&
-            initialContactId !== '-' && initialContactId !== 'unknown-id'
+            contactId && initialContactId &&
+            initialContactId !== '-' && initialContactId !== 'unknown-id' &&
+            contactId !== '-' && contactId !== 'unknown-id'
           ) {
-            // 転送元コンタクトIDの参照
-            const responseCurrent = await client.queries.getContactInfo({
-              instanceId: connectInstanceId,
-              contactId: initialContactId,
-            });
-            console.log("転送元コンタクト情報:", initialContactId);
-            console.log(responseCurrent);
-          }
+            // 転送通話か確認
+            if (contactId !== initialContactId) {
+              // 転送通話の場合
+              // 転送元コンタクトIDの参照
+              const responseCurrent = await client.queries.getContactInfo({
+                instanceId: connectInstanceId,
+                contactId: initialContactId,
+              });
+              console.log("転送元コンタクト情報:", initialContactId);
+              console.log(responseCurrent);
+            } else {
+              // 転送通話ではない場合
+              // 転送先コンタクトIDの参照
+              const responseTrans = await client.queries.getContactInfo({
+                instanceId: connectInstanceId,
+                contactId: contactId,
+              });
+              console.log("転送先コンタクト情報:", contactId);
+              console.log(responseTrans);
+            }
 
-          if (
-            contactId &&
-            contactId !== '-' && contactId !== 'unknown-id' &&
-            contactId !== initialContactId
-          ) {
-            // 転送先コンタクトIDの参照
-            const responseTrans = await client.queries.getContactInfo({
-              instanceId: connectInstanceId,
-              contactId: contactId,
-            });
-            console.log("転送先コンタクト情報:", contactId);
-            console.log(responseTrans);
           }
         } catch (e) {
           console.warn("コンタクト情報の参照APIエラー", e);
