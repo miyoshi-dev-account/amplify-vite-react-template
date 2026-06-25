@@ -877,10 +877,10 @@ function App() {
           const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
           console.log("getInitialContactIdによる転送元コンタクトID取得", initialContactId);
 
-          const queue = await contactClient.getQueue(contactId);
+          const queue = await contactClient.getQueue(initialContactId);
           console.log("getQueueによるキュー取得", queue);
 
-          const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
+          const transAttributes = await contactClient.getAttributes(initialContactId, ["TransferQueueName"]);
           const queueNameAttr = transAttributes?.TransferQueueName as any;
           queueName = queueNameAttr?.value || queueNameAttr || '不明';
           console.log("getAttributesによるキュー取得", queueName);
