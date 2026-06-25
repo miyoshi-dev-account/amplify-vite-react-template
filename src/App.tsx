@@ -872,6 +872,21 @@ function App() {
         } catch (e) {
           console.warn("時間情報の取得に失敗しました（すでにコンタクトが切断されている可能性があります）", e);
         }
+      } else {
+        try {
+          const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
+          console.log("getInitialContactIdによる転送元コンタクトID取得", initialContactId);
+
+          const queue = await contactClient.getQueue(contactId);
+          console.log("getQueueによるキュー取得", queue);
+
+          const transAttributes = await contactClient.getAttributes(contactData.contactId, ["TransferQueueName"]);
+          const queueNameAttr = transAttributes?.TransferQueueName as any;
+          queueName = queueNameAttr?.value || queueNameAttr || '不明';
+          console.log("getAttributesによるキュー取得", queueName);
+        } catch (e) {
+          console.warn("初期コンタクトIDの参照エラー");
+        }
       }
 
       if (isMissed) {
