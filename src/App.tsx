@@ -875,7 +875,12 @@ function App() {
       } else {
         try {
           const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // ConnectのインスタンスID
-          const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
+          //const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
+          const initialContactId = contactData.initialContactId;
+
+          console.log("------ 転送かつ不在着信の場合 ------");
+          console.log("転送先コンタクトID", contactId);
+          console.log("転送元コンタクトID", initialContactId);
 
           if (
             initialContactId &&
