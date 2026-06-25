@@ -874,7 +874,7 @@ function App() {
         }
       } else {
         try {
-          const connectInstanceId = "xxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"; // ConnectのインスタンスID
+          const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // ConnectのインスタンスID
           const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
 
           if (
