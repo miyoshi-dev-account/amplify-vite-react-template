@@ -872,46 +872,6 @@ function App() {
         } catch (e) {
           console.warn("時間情報の取得に失敗しました（すでにコンタクトが切断されている可能性があります）", e);
         }
-      } else {
-        try {
-          const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // ConnectのインスタンスID
-          //const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
-          const initialContactId = contactData.initialContactId;
-
-          console.log("------ 転送かつ不在着信の場合 ------");
-          console.log("転送先コンタクトID", contactId);
-          console.log("転送元コンタクトID", initialContactId);
-
-          if (
-            contactId && initialContactId &&
-            initialContactId !== '-' && initialContactId !== 'unknown-id' &&
-            contactId !== '-' && contactId !== 'unknown-id'
-          ) {
-            // 転送通話か確認
-            if (contactId !== initialContactId) {
-              // 転送通話の場合
-              // 転送元コンタクトIDの参照
-              const responseCurrent = await client.queries.getContactInfo({
-                instanceId: connectInstanceId,
-                contactId: initialContactId,
-              });
-              console.log("転送元コンタクト情報:", initialContactId);
-              console.log(responseCurrent);
-            } else {
-              // 転送通話ではない場合
-              // 転送先コンタクトIDの参照
-              const responseTrans = await client.queries.getContactInfo({
-                instanceId: connectInstanceId,
-                contactId: contactId,
-              });
-              console.log("転送先コンタクト情報:", contactId);
-              console.log(responseTrans);
-            }
-
-          }
-        } catch (e) {
-          console.warn("コンタクト情報の参照APIエラー", e);
-        }
       }
 
       if (isMissed) {
@@ -960,10 +920,92 @@ function App() {
 
     const onMissedHandler = async (data: any) => {
       const contactId = data?.contactId;
-      if (contactId) {
-        // タイムアウトしたコンタクトを処理済みとしてマークする
-        handledContacts.current.add(contactId);
+      const initialContactId = data?.initialContactId;
+      if (!contactId || !initialContactId || handledContacts.current.has(contactId)) return;
+      handledContacts.current.add(contactId); // 通話履歴の重複保存防止
+
+      try {
+        console.log("onMissed から handleSaveHistory を実行します");
+        console.log("コンタクトID", contactId);
+        console.log("転送元コンタクトID", initialContactId);
+        await handleSaveHistory(data, true);
+
+        const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // ConnectのインスタンスID
+        //const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
+        //const initialContactId = data?.initialContactId;
+
+        // await を使わず、.then() で非同期に処理を受け取ります
+        if (contactId !== initialContactId) {
+          client.queries.getContactInfo({
+            instanceId: connectInstanceId,
+            contactId: contactId,
+          }).then((response: any) => {
+            const contactInfo = response.data;
+
+            if (contactInfo?.success) {
+              console.log("バックエンドから情報取得成功、履歴を更新します:", contactInfo);
+
+              // 既存の履歴Stateをループし、該当の contactId のレコードの「不明」を上書きする
+              setContactHistory((prevHistory) => {
+                const updatedHistory = prevHistory.map(record => {
+                  if (record.contactId === contactId) {
+                    return {
+                      ...record,
+                      // Lambdaから取得できた場合のみ上書き
+                      //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : record.queueName,
+                      queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : record.queueName,
+                      phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : record.phoneNumber,
+                    };
+                  }
+                  return record;
+                });
+
+                // localStorage にも最新状態を上書き保存
+                localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
+                return updatedHistory;
+              });
+            }
+          }).catch((error: any) => {
+            // 処理中に画面が破棄されてエラーになっても、既に履歴は作成されているので影響なし
+            console.warn("バックエンドからの情報取得が中断されました:", error);
+          });
+        }
+
+        /*
+        if (
+          contactId && initialContactId &&
+          initialContactId !== '-' && initialContactId !== 'unknown-id' &&
+          contactId !== '-' && contactId !== 'unknown-id'
+        ) {
+          // 転送通話か確認
+          if (contactId !== initialContactId) {
+            // 転送通話の場合
+            // 転送元コンタクトIDの参照
+            const responseCurrent = await client.queries.getContactInfo({
+              instanceId: connectInstanceId,
+              contactId: initialContactId,
+            });
+            console.log("転送元コンタクト情報:", initialContactId);
+            console.log(responseCurrent);
+          } else {
+            // 転送通話ではない場合
+            // 転送先コンタクトIDの参照
+            const responseTrans = await client.queries.getContactInfo({
+              instanceId: connectInstanceId,
+              contactId: contactId,
+            });
+            console.log("転送先コンタクト情報:", contactId);
+            console.log(responseTrans);
+          }
+
+        }
+        */
+        console.log("onMissed からの履歴保存処理が完了しました");
+      } catch (e) {
+        console.warn("コンタクト情報の参照APIエラー", e);
       }
+
+      /*
       try {
         console.log("onMissed から handleSaveHistory を実行します");
         // 💡 確実に isMissed = true として履歴保存を実行する
@@ -973,6 +1015,7 @@ function App() {
         // 💡 もし handleSaveHistory の内部でエラーが起きていれば、ここでキャッチして赤文字で表示する
         console.error("履歴保存中に予期せぬエラーが発生しました:", error);
       }
+      */
     };
 
     // ログアウトまたはオフライン検知時のリセット処理 →　動いていないので要修正
