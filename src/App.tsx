@@ -1044,7 +1044,73 @@ function App() {
     };
   }, []);
 
-  // 転送時の通知用
+  // 通話履歴用(転送時の不在着信の対策)
+  useEffect(() => {
+    // 💡 対策1: 通話履歴タブが選択された時のみ実行するように条件を追加
+    if (activeTab !== 'history') return;
+
+    const recoverIncompleteHistory = async () => {
+      // 💡 対策2: localStorage ではなく sessionStorage を参照する
+      const savedData = sessionStorage.getItem('agentContactHistory');
+      if (!savedData) return;
+
+      const currentHistory: ContactRecord[] = JSON.parse(savedData);
+
+      // queueName または phoneNumber が「不明」のままのレコードを抽出
+      const incompleteRecords = currentHistory.filter(
+        record => record.queueName === '不明' || record.phoneNumber === '不明'
+      );
+
+      if (incompleteRecords.length === 0) return;
+
+      console.log(`${incompleteRecords.length}件の不明な履歴のリカバリを開始します...`);
+
+      let isUpdated = false;
+      let updatedHistory = [...currentHistory];
+      const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // 実際のインスタンスIDに変更してください
+
+      for (const record of incompleteRecords) {
+        try {
+          // Lambda経由でコンタクト情報を再取得
+          const response = await client.queries.getContactInfo({
+            instanceId: connectInstanceId,
+            contactId: record.contactId,
+          });
+          const contactInfo = response.data;
+
+          if (contactInfo?.success) {
+            updatedHistory = updatedHistory.map(r => {
+              if (r.contactId === record.contactId) {
+                return {
+                  ...r,
+                  //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : r.queueName,
+                  queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : r.queueName,
+                  phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : r.phoneNumber,
+                };
+              }
+              return r;
+            });
+            isUpdated = true;
+          }
+        } catch (error) {
+          console.warn(`コンタクトID ${record.contactId} のリカバリに失敗しました:`, error);
+        }
+      }
+
+      // 1件でも更新があれば、StateとSessionStorageを上書き保存
+      if (isUpdated) {
+        console.log("履歴のリカバリが完了し、データを更新しました。");
+        setContactHistory(updatedHistory);
+        sessionStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory)); // 💡 ここも sessionStorage に変更
+      }
+    };
+
+    recoverIncompleteHistory();
+
+    // 対策3: 依存配列に activeTab を入れ、タブが切り替わるたびにこの useEffect を評価させる
+  }, [activeTab]);
+
+  // 転送時の通知用 ※削除予定
   useEffect(() => {
     if (
       contactInfo &&
