@@ -135,7 +135,7 @@ backend.getContactInfo.resources.lambda.addToRolePolicy(
 
 backend.searchQueues.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
-    actions: ['connect:SearchQueues'],
+    actions: ['connect:SearchQueues', 'connect:DescribeQueue'],
     // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
     // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
     resources: [
