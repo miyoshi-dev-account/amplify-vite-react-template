@@ -138,6 +138,9 @@ backend.searchQueues.resources.lambda.addToRolePolicy(
     actions: ['connect:SearchQueues'],
     // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
     // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
-    resources: ['*'],
+    resources: [
+      `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833`,
+      `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/queue/*`
+    ],
   })
 );
