@@ -144,6 +144,9 @@ function App() {
   const [transferCustomName, setTransferCustomName] = useState<string>('');
   const notifiedTransferContacts = useRef<Set<string>>(new Set());
 
+  // 発信先通知番号の選択用
+  const [fetchedQueues, setFetchedQueues] = useState<any[]>([]);
+
   const getQueueDisplayName = (queueName: string | undefined) => {
     if (!config?.queueDisplayNames || typeof queueName !== 'string') {
       return null;
@@ -1207,6 +1210,25 @@ function App() {
 
   }, [contactInfo]);
 
+  // 発信先通知番号の選択用
+  useEffect(() => {
+    const loadQueues = async () => {
+      try {
+        const response = await client.queries.searchQueues();
+
+        if (response.data?.success) {
+          const parsedQueues = JSON.parse(response.data.queues || "[]");
+          setFetchedQueues(parsedQueues);
+          console.log("キュー一覧を取得しました:", parsedQueues);
+        }
+      } catch (error) {
+        console.error("キュー一覧の取得に失敗しました:", error);
+      }
+    };
+
+    loadQueues();
+  }, []);
+
   if (loading || !config) {
     return <div>{t('common.config.loadingMessage')}</div>;
   }
@@ -1290,6 +1312,86 @@ function App() {
                     : queue.name,
                   value: queue.queueARN
                 }))}
+              />
+            </FormField>
+
+            <FormField label="発信先電話番号">
+              <div className="phone-number-container">
+                <Select
+                  selectedOption={countryOptions.find(option => option.value === countryCode) ?? null}
+                  onChange={({ detail }) => setCountryCode(detail.selectedOption.value ?? '')}
+                  options={countryOptions}
+                  className="country-code-select"
+                />
+                <Input
+                  value={phoneNumberWithoutCode}
+                  onChange={({ detail }) => setPhoneNumberWithoutCode(detail.value)}
+                  placeholder="電話番号を入力してください"
+                  className="phone-number-input"
+                />
+                <Button
+                  variant="primary"
+                  onClick={handleOutboundCall}
+                  disabled={!phoneNumberWithoutCode || !selectedQueueARN || !voiceClientInstance}
+                >
+                  発信
+                </Button>
+              </div>
+            </FormField>
+
+            {outboundStatus && (
+              <Alert type={outboundStatus.includes('エラー') ? 'error' : 'success'}>
+                {outboundStatus}
+              </Alert>
+            )}
+          </SpaceBetween>
+        </Container>
+      </Suspense>
+    );
+  };
+
+  const renderOutboundTabTEST = () => {
+    const countryOptions = config ? Object.entries(config?.countryCode ?? {}).map(([label, value]) => ({
+      label,
+      value
+    })) : [];
+
+    return (
+      <Suspense fallback={<div>{t('tab.outbound.loadingMessage')}</div>}>
+        <Container>
+          <SpaceBetween size="l">
+            <FormField label="発信キュー(発信者ID番号)">
+              <Select
+                selectedOption={
+                  availableQueues.find(q => q.queueARN === selectedQueueARN)
+                    ? {
+                      label: (() => {
+                        const queue = availableQueues.find(q => q.queueARN === selectedQueueARN);
+                        if (!queue) return '';
+
+                        // fetchedQueues の中から、該当するキューの付加情報（発信者名）を探す
+                        const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+
+                        return fetchedQueue?.outboundCallerName
+                          ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                          : queue.name;
+                      })(),
+                      value: selectedQueueARN
+                    }
+                    : null
+                }
+                onChange={({ detail }) => setSelectedQueueARN(detail.selectedOption.value ?? '')}
+
+                // availableQueues をベースにして選択肢を作り、表示名だけ fetchedQueues から補完する
+                options={availableQueues.map(queue => {
+                  const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+                  return {
+                    label: fetchedQueue?.outboundCallerName
+                      ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                      : queue.name,
+                    value: queue.queueARN
+                  };
+                })}
               />
             </FormField>
 
@@ -1542,7 +1644,8 @@ function App() {
               {
                 label: "外線発信",
                 id: "outbound",
-                content: renderOutboundTab()
+                //content: renderOutboundTab()
+                content: renderOutboundTabTEST()
               },
               {
                 label: "自分の通話履歴",

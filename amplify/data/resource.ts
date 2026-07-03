@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { updateContactAttributes } from '../functions/updateContactAttributes/resource';
 import { getContactInfo } from '../functions/getContactInfo/resource';
+import { searchQueues } from '../functions/searchQueues/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -90,6 +91,21 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(getContactInfo))
+    .authorization((allow) => [allow.publicApiKey()]),
+
+  searchQueues: a
+    .query()
+    // arguments は不要になったため削除（またはコメントアウト）
+    // .arguments({
+    //   instanceId: a.string().required(),
+    // })
+    .returns(
+      a.customType({
+        success: a.boolean().required(),
+        queues: a.string().required(),
+      })
+    )
+    .handler(a.handler.function(searchQueues))
     .authorization((allow) => [allow.publicApiKey()]),
 });
 

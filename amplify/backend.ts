@@ -6,6 +6,7 @@ import { fetchConnectUser } from "./functions/fetchConnectUser/resource";
 import { queueAlert } from "./functions/queueAlert/resource";
 import { updateContactAttributes } from './functions/updateContactAttributes/resource';
 import { getContactInfo } from './functions/getContactInfo/resource';
+import { searchQueues } from './functions/searchQueues/resource';
 
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -23,6 +24,7 @@ const backend = defineBackend({
   queueAlert,
   updateContactAttributes,
   getContactInfo,
+  searchQueues,
 });
 
 // --- ユーザーリスト取得用のLambda関数(fetchConnectUser)の定義 ---
@@ -121,6 +123,19 @@ backend.updateContactAttributes.resources.lambda.addToRolePolicy(
 backend.getContactInfo.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: ['connect:DescribeContact', 'connect:GetContactAttributes'],
+    // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
+    // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
+    resources: ['*'],
+  })
+);
+
+
+
+// --- キューの発信先通知番号を取得するLambda関数(searchQueues)の定義 ---
+
+backend.searchQueues.resources.lambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: ['connect:SearchQueues'],
     // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
     // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
     resources: ['*'],
