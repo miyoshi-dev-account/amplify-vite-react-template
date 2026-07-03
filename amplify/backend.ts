@@ -110,8 +110,6 @@ new events.Rule(eventStack, 'MetricsPollingRule', {
 backend.updateContactAttributes.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: ['connect:UpdateContactAttributes'],
-    // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
-    // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
     resources: ['*'],
   })
 );
@@ -123,8 +121,6 @@ backend.updateContactAttributes.resources.lambda.addToRolePolicy(
 backend.getContactInfo.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
     actions: ['connect:DescribeContact', 'connect:GetContactAttributes'],
-    // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
-    // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
     resources: ['*'],
   })
 );
@@ -135,12 +131,11 @@ backend.getContactInfo.resources.lambda.addToRolePolicy(
 
 backend.searchQueues.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
-    actions: ['connect:SearchQueues', 'connect:DescribeQueue'],
-    // ※セキュリティを強固にする場合は、リソースを特定のインスタンスやコンタクトに絞ります
-    // 例: 'arn:aws:connect:ap-northeast-1:123456789012:instance/INSTANCE_ID/contact/*'
+    actions: ['connect:SearchQueues', 'connect:DescribeQueue', 'connect:ListPhoneNumbers'],
     resources: [
       `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833`,
-      `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/queue/*`
+      `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/queue/*`,
+      `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/phone-number/*`
     ],
   })
 );
