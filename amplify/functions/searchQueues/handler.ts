@@ -10,10 +10,10 @@ export const handler = async (event: any) => {
         const command = new SearchQueuesCommand({
             InstanceId: instanceId,
             // 標準キュー（STANDARD）のみを取得する場合などのフィルタリング設定
-            SearchFilter: {
-                TagFilter: {} // 必要に応じてタグで絞り込み
-            },
-            MaxResults: 100 // 取得する最大件数
+            //SearchFilter: {
+            //    TagFilter: {} // 必要に応じてタグで絞り込み
+            //},
+            //MaxResults: 100 // 取得する最大件数
         });
         const response = await client.send(command);
 
