@@ -19,40 +19,101 @@ interface ContactHistoryProps {
 }
 
 export default function ContactHistory({ history, onRedial }: ContactHistoryProps) {
+    // 簡易表示と詳細表示の切り替えState (初期値は簡易表示=true)
+    const [isCompactView, setIsCompactView] = useState(true);
+
+    // フィルター用のState
+    const [filterType, setFilterType] = useState('すべて');
+
+    // 通話履歴のフィルタリング処理
+    const filteredHistory = history.filter((record) => {
+        if (filterType === 'すべて') return true;
+        // 選択されたタイプと一致するレコードのみを返す
+        return record.type === filterType;
+    });
+
     return (
         <div style={{ padding: '10px' }}>
-            <h3>自分の通話履歴</h3>
-            {history.length > 0 ? (
+            {/* ヘッダー部分（タイトル、フィルター、切り替えボタン） */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3 style={{ margin: 0 }}>自分の通話履歴</h3>
+
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    {/* フィルター用のセレクトボックス */}
+                    <div>
+                        <label htmlFor="typeFilter" style={{ marginRight: '5px', fontWeight: 'bold' }}>タイプ絞り込み:</label>
+                        <select
+                            id="typeFilter"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            style={{ padding: '4px' }}
+                        >
+                            <option value="すべて">すべて</option>
+                            <option value="着信">着信</option>
+                            <option value="発信">発信</option>
+                            <option value="不在着信">不在着信</option>
+                            <option value="不在発信">不在発信</option>
+                        </select>
+                    </div>
+
+                    {/* 表示切り替えボタン */}
+                    <button
+                        onClick={() => setIsCompactView(!isCompactView)}
+                        style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#fff',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {isCompactView ? '詳細表示にする' : '簡易表示にする'}
+                    </button>
+                </div>
+            </div>
+
+            {filteredHistory.length > 0 ? (
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '10px', fontSize: '14px' }}>
                     <thead>
-                        <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
-                            <th style={{ padding: '8px' }}>開始時間</th>
-                            <th style={{ padding: '8px' }}>通話時間</th>
-                            <th style={{ padding: '8px' }}>終了時間</th>
-                            <th style={{ padding: '8px' }}>タイプ</th>
-                            <th style={{ padding: '8px' }}>キュー名</th>
-                            <th style={{ padding: '8px' }}>電話番号</th>
-                            <th style={{ padding: '8px' }}>操作</th>
+                        <tr style={{ borderBottom: '2px solid #ccc', backgroundColor: '#f9f9f9' }}>
+                            {/* isCompactView が false(詳細表示) の時だけ表示する項目 */}
+                            {!isCompactView && <th style={{ padding: '10px' }}>コンタクトID</th>}
+
+                            <th style={{ padding: '10px' }}>開始時間</th>
+
+                            {!isCompactView && <th style={{ padding: '10px' }}>通話時間</th>}
+                            {!isCompactView && <th style={{ padding: '10px' }}>終了時間</th>}
+
+                            <th style={{ padding: '10px' }}>タイプ</th>
+                            <th style={{ padding: '10px' }}>キュー名</th>
+                            <th style={{ padding: '10px' }}>電話番号</th>
+                            <th style={{ padding: '10px' }}>操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {history.map((record) => (
-                            <tr key={record.contactId} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                                <td style={{ padding: '8px' }}>{record.startTime}</td>
-                                <td style={{ padding: '8px' }}>{record.duration}</td>
-                                <td style={{ padding: '8px' }}>{record.endTime}</td>
-                                <td style={{ padding: '8px' }}>
-                                    <span style={{
-                                        color: record.type.includes('不在') ? '#dc2626' : '#374151',
-                                        fontWeight: record.type.includes('不在') ? 'bold' : 'normal'
-                                    }}>
-                                        {record.type}
-                                    </span>
+                        {filteredHistory.map((record, index) => (
+                            <tr key={record.contactId || index} style={{ borderBottom: '1px solid #eee' }}>
+                                {/* 💡 コンタクトID */}
+                                {!isCompactView && <td style={{ padding: '10px' }}>{record.contactId}</td>}
+
+                                {/* 💡 常に表示する項目 */}
+                                <td style={{ padding: '10px' }}>{record.startTime}</td>
+
+                                {/* 💡 通話時間と終了時間 */}
+                                {!isCompactView && <td style={{ padding: '10px' }}>{record.duration}</td>}
+                                {!isCompactView && <td style={{ padding: '10px' }}>{record.endTime}</td>}
+
+                                {/* 💡 常に表示する項目 */}
+                                <td style={{
+                                    padding: '10px',
+                                    color: record.type.includes('不在') ? '#dc2626' : '#374151',
+                                    fontWeight: record.type.includes('不在') ? 'bold' : 'normal'
+                                }}>
+                                    {record.type}
                                 </td>
-                                <td style={{ padding: '8px' }}>{record.queueName}</td>
-                                <td style={{ padding: '8px' }}>{record.phoneNumber}</td>
-                                <td style={{ padding: '8px' }}>
-                                    {/* 電話番号が存在する場合のみ、リダイヤルボタンを表示する */}
+                                <td style={{ padding: '10px' }}>{record.queueName}</td>
+                                <td style={{ padding: '10px' }}>{record.phoneNumber}</td>
+                                <td style={{ padding: '10px' }}>
                                     {record.phoneNumber && record.phoneNumber !== '不明' && (
                                         <button
                                             onClick={() => onRedial(record.phoneNumber)}
