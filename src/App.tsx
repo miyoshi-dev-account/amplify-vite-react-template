@@ -1638,7 +1638,7 @@ function App() {
               {transferNotification}
             </div>
           )}
-          <QueueMonitor />
+          <QueueMonitor availableQueues={availableQueues} />
           <Tabs
             tabs={[
               {
