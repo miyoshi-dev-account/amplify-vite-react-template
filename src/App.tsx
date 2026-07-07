@@ -124,6 +124,7 @@ function App() {
   const [quickConnects, setQuickConnects] = useState<any[]>([]);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [appSyncUserList, setAppSyncUserList] = useState<Array<Schema['UserList']['type']>>([]);
+  const [searchName, setSearchName] = useState<string>('');
 
   // 通話履歴用
   // 履歴データの初期読み込み
@@ -567,12 +568,15 @@ function App() {
 
   // クイック接続一覧用
   const filteredQuickConnects = quickConnects.filter((qc) => {
+    // 検索文字列が入力されている場合、クイック接続名に含まれていなければ除外（大文字小文字を区別しない）
+    if (searchName && !qc.name.toLowerCase().includes(searchName.toLowerCase())) {
+      return false;
+    }
+
     // 'ALL' の場合はすべて表示
     if (filterType === 'ALL') return true;
 
     // SDKのレスポンス仕様に合わせて種類を判定
-    // ※ 実際のプロパティ名（typeなど）や値（'AGENT'、'QUEUE'等、または connect.EndpointType 定数）は、
-    // APIの戻り値（console.log 等）を確認して適宜調整してください。
     return qc.type === filterType || qc.quickConnectType === filterType;
   });
 
@@ -1475,18 +1479,36 @@ function App() {
       <Suspense fallback={<div>{t('tab.userList.loadingMessage')}</div>}>
         <Container>
           <SpaceBetween size="l">
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center' }}>
-              <label htmlFor="customNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
-                転送時の通知名:
-              </label>
-              <input
-                id="customNameInput"
-                type="text"
-                value={transferCustomName}
-                onChange={(e) => setTransferCustomName(e.target.value)}
-                placeholder="例: 山田太郎"
-                style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
-              />
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+              {/* 転送時の通知名 入力欄 */}
+              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center' }}>
+                <label htmlFor="customNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
+                  転送時の通知名:
+                </label>
+                <input
+                  id="customNameInput"
+                  type="text"
+                  value={transferCustomName}
+                  onChange={(e) => setTransferCustomName(e.target.value)}
+                  placeholder="例: 山田太郎"
+                  style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+
+              {/* クイック接続名の検索入力欄 */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <label htmlFor="searchNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
+                  接続名で検索:
+                </label>
+                <input
+                  id="searchNameInput"
+                  type="text"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  placeholder="検索する文字列"
+                  style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
             </div>
             <FormField label="所属キュー">
               <Select
