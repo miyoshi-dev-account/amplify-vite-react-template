@@ -1481,7 +1481,7 @@ function App() {
           <SpaceBetween size="l">
             <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
               {/* 転送時の通知名 入力欄 */}
-              <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ /*marginBottom: '16px', */display: 'flex', alignItems: 'center' }}>
                 <label htmlFor="customNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
                   転送時の通知名:
                 </label>
