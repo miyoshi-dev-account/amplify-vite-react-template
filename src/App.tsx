@@ -1066,7 +1066,7 @@ function App() {
       // queueName または phoneNumber が「不明」のままのレコードを抽出
       const incompleteRecords = currentHistory.filter(
         record => record.queueName === '不明' || record.phoneNumber === '不明' ||
-        record.queueName === '' || record.phoneNumber === ''
+          record.queueName === '' || record.phoneNumber === ''
       );
 
       if (incompleteRecords.length === 0) return;
@@ -1518,13 +1518,13 @@ function App() {
                     ? {
                       label: (() => {
                         const queue = availableQueues.find(q => q.queueARN === selectedQueueARN);
-                        // 対策: queue が undefined の場合は空文字やデフォルトの文字列を返すようにする
-                        if (!queue) {
-                          return '';
-                        }
-                        const displayNumber = getQueueDisplayName(queue?.name);
-                        return displayNumber
-                          ? `${queue.name} (${displayNumber})`
+                        if (!queue) return '';
+
+                        // fetchedQueues の中から、該当するキューの付加情報（発信者名）を探す
+                        const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+
+                        return fetchedQueue?.outboundCallerName
+                          ? `${queue.name} (${fetchedQueue.outboundCallerName})`
                           : queue.name;
                       })(),
                       value: selectedQueueARN
@@ -1532,12 +1532,17 @@ function App() {
                     : null
                 }
                 onChange={({ detail }) => setSelectedQueueARN(detail.selectedOption.value ?? '')}
-                options={availableQueues.map(queue => ({
-                  label: getQueueDisplayName(queue.name)
-                    ? `${queue.name} (${getQueueDisplayName(queue.name)})`
-                    : queue.name,
-                  value: queue.queueARN
-                }))}
+
+                // availableQueues をベースにして選択肢を作り、表示名だけ fetchedQueues から補完する
+                options={availableQueues.map(queue => {
+                  const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+                  return {
+                    label: fetchedQueue?.outboundCallerName
+                      ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                      : queue.name,
+                    value: queue.queueARN
+                  };
+                })}
               />
             </FormField>
 
