@@ -78,7 +78,7 @@ const schema = a.schema({
   getContactInfo: a
     .query()
     .arguments({
-      instanceId: a.string().required(),
+      //instanceId: a.string().required(),
       contactId: a.string().required(),
     })
     .returns(
@@ -88,6 +88,7 @@ const schema = a.schema({
         phoneNumber: a.string().required(),
         transferCustomName: a.string(),
         transferQueueName: a.string(),
+        initiationMethod: a.string(),
       })
     )
     .handler(a.handler.function(getContactInfo))

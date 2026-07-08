@@ -937,14 +937,9 @@ function App() {
         console.log("転送元コンタクトID", initialContactId);
         await handleSaveHistory(data, true);
 
-        const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // ConnectのインスタンスID
-        //const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
-        //const initialContactId = data?.initialContactId;
-
         // await を使わず、.then() で非同期に処理を受け取ります
         if (contactId !== initialContactId) {
           client.queries.getContactInfo({
-            instanceId: connectInstanceId,
             contactId: contactId,
           }).then((response: any) => {
             const contactInfo = response.data;
@@ -956,12 +951,30 @@ function App() {
               setContactHistory((prevHistory) => {
                 const updatedHistory = prevHistory.map(record => {
                   if (record.contactId === contactId) {
+                    let updatedType = record.type;
+                    let updateQueueName = record.queueName;
+
+                    if (contactInfo.initiationMethod === 'OUTBOUND') {
+                      // 暫定で「着信」系になっていたものを「発信」系に修正
+                      updatedType = record.type === '不在着信' ? '不在発信' : (record.type === '着信' ? '発信' : record.type);
+                    } else if (contactInfo.initiationMethod === 'INBOUND') {
+                      updatedType = record.type === '不在発信' ? '不在着信' : (record.type === '発信' ? '着信' : record.type);
+                    }
+
+                    // 転送した場合か確認
+                    if (contactInfo.transferQueueName && contactInfo.transferQueueName !== '不明') {
+                      updateQueueName = contactInfo.transferQueueName;
+                    } else {
+                      updateQueueName = contactInfo.queueName;
+                    }
+
                     return {
                       ...record,
                       // Lambdaから取得できた場合のみ上書き
-                      //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : record.queueName,
-                      queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : record.queueName,
+                      //queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : record.queueName,
+                      queueName: updateQueueName,
                       phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : record.phoneNumber,
+                      type: updatedType,
                     };
                   }
                   return record;
@@ -1075,13 +1088,11 @@ function App() {
 
       let isUpdated = false;
       let updatedHistory = [...currentHistory];
-      const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833"; // 実際のインスタンスIDに変更してください
 
       for (const record of incompleteRecords) {
         try {
           // Lambda経由でコンタクト情報を再取得
           const response = await client.queries.getContactInfo({
-            instanceId: connectInstanceId,
             contactId: record.contactId,
           });
           const contactInfo = response.data;
@@ -1089,11 +1100,29 @@ function App() {
           if (contactInfo?.success) {
             updatedHistory = updatedHistory.map(r => {
               if (r.contactId === record.contactId) {
+                let updatedType = r.type;
+                let updateQueueName = r.queueName;
+
+                if (contactInfo.initiationMethod === 'OUTBOUND') {
+                  // 暫定で「着信」系になっていたものを「発信」系に修正
+                  updatedType = record.type === '不在着信' ? '不在発信' : (record.type === '着信' ? '発信' : r.type);
+                } else if (contactInfo.initiationMethod === 'INBOUND') {
+                  updatedType = record.type === '不在発信' ? '不在着信' : (record.type === '発信' ? '着信' : r.type);
+                }
+
+                // 転送した場合か確認
+                if (contactInfo.transferQueueName && contactInfo.transferQueueName !== '不明') {
+                  updateQueueName = contactInfo.transferQueueName;
+                } else {
+                  updateQueueName = contactInfo.queueName;
+                }
+
                 return {
                   ...r,
                   //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : r.queueName,
-                  queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : r.queueName,
+                  queueName: updateQueueName,
                   phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : r.phoneNumber,
+                  type: updatedType,
                 };
               }
               return r;

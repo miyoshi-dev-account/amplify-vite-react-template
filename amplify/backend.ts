@@ -120,7 +120,7 @@ backend.updateContactAttributes.resources.lambda.addToRolePolicy(
 
 backend.getContactInfo.resources.lambda.addToRolePolicy(
   new iam.PolicyStatement({
-    actions: ['connect:DescribeContact', 'connect:GetContactAttributes'],
+    actions: ['connect:DescribeContact', 'connect:GetContactAttributes', 'connect:DescribeQueue'],
     resources: ['*'],
   })
 );
