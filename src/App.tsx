@@ -1065,7 +1065,8 @@ function App() {
 
       // queueName または phoneNumber が「不明」のままのレコードを抽出
       const incompleteRecords = currentHistory.filter(
-        record => record.queueName === '不明' || record.phoneNumber === '不明'
+        record => record.queueName === '不明' || record.phoneNumber === '不明' ||
+        record.queueName === '' || record.phoneNumber === ''
       );
 
       if (incompleteRecords.length === 0) return;
@@ -1691,7 +1692,7 @@ function App() {
                 content: renderAttributesTab()
               },
               {
-                label: "オペレータ一覧",
+                label: "クイック接続",
                 id: "userList",
                 content: renderUserListTab()
               }
