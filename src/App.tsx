@@ -503,10 +503,10 @@ function App() {
   const updateAttributesViaBackend = async (contactId: string, customName: string, queueName: string) => {
     try {
       // ※ instanceId は Connect の ARN や設定から取得してください
-      const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833";
+      //const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833";
 
       const response = await client.queries.updateContactAttributes({
-        instanceId: connectInstanceId,
+        //instanceId: connectInstanceId,
         contactId: contactId,
         customName: customName,
         queueName: queueName

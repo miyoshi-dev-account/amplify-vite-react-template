@@ -60,7 +60,7 @@ const schema = a.schema({
   updateContactAttributes: a
     .query()
     .arguments({
-      instanceId: a.string().required(),
+      //instanceId: a.string().required(),
       contactId: a.string().required(),
       customName: a.string().required(),
       queueName: a.string().required(),

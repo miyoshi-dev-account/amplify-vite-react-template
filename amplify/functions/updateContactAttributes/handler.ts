@@ -6,7 +6,8 @@ const client = new ConnectClient({});
 
 export const handler = async (event: Schema["updateContactAttributes"]["functionHandler"]) => {
     // フロントエンドから渡された引数を取得
-    const { instanceId, contactId, customName, queueName } = event.arguments;
+    const { contactId, customName, queueName } = event.arguments;
+    const instanceId = process.env.CONNECT_INSTANCE_ID;
 
     try {
         const command = new UpdateContactAttributesCommand({
