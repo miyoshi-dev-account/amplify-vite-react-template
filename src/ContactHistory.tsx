@@ -49,7 +49,7 @@ const formatPhoneNumber = (phoneNumber: string) => {
 
         // 米国の電話番号（10桁）の場合: 3桁-3桁-4桁 に変換
         if (localNumber.length === 10) {
-            return `+1 ${localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')}`;
+            return `0${localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')}`;
         }
 
         // 10桁以外の場合は、ハイフンなしでそのまま返す
