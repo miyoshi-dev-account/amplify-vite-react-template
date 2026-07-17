@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../amplify/data/resource'; // スキーマのパスは環境に合わせて調整してください
+import type { Schema } from '../amplify/data/resource';
 import { Button, SpaceBetween } from '@cloudscape-design/components';
 
 // Amplify Data クライアントの初期化
@@ -37,7 +37,7 @@ export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
     const [isCompactMode, setIsCompactMode] = useState(true); // 初期値をtrue(縮小)に設定
 
     useEffect(() => {
-        // QueueMetrics テーブルの変更をリアルタイムに監視（サブスクライブ）
+        // QueueMetrics テーブルの変更をリアルタイムに監視
         const subscription = client.models.QueueMetrics.observeQuery().subscribe({
             next: (data) => {
                 // data.items には、テーブル内のすべての最新レコードの配列が入ります
@@ -65,7 +65,6 @@ export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
     // データのフィルタリングと表示件数の制御
     // エージェントが対応するキュー（availableQueues）に含まれるものだけに絞り込む
     const filteredMetrics = metricsData.filter((metric) => {
-        // ※ metric.queueName の部分は、実際の QueueMetrics テーブルの項目名（queueARNやnameなど）に合わせて変更してください
         return availableQueues.some(queue => queue.name === (metric as any).queueName);
     });
 

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// 必要に応じて Amplify UI や Cloudscape のコンポーネントをインポートします
-// import { Table, Container, Header } from '@cloudscape-design/components';
 
 // 💡 取得する情報の型定義
 export interface ContactRecord {
@@ -17,6 +15,36 @@ interface ContactHistoryProps {
     history: ContactRecord[];
     onRedial: (phoneNumber: string) => void; // 💡 リダイヤル用の関数をPropsとして受け取る
 }
+
+// 電話番号の表示形式を変換する関数
+const formatPhoneNumber = (phoneNumber: string) => {
+    if (!phoneNumber || phoneNumber === '不明') return phoneNumber;
+
+    // '+81' で始まる日本の電話番号の場合
+    if (phoneNumber.startsWith('+81')) {
+        // '+81' を '0' に置換する (+815033551111 -> 05033551111)
+        const localNumber = '0' + phoneNumber.slice(3);
+
+        // 11桁の場合（携帯電話、IP電話 050/070/080/090 等）: 3桁-4桁-4桁
+        if (localNumber.length === 11) {
+            return localNumber.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+        }
+        // 10桁の場合（固定電話）: 簡易的に 2桁-4桁-4桁(東京03等) または 3桁-3桁-4桁 に変換
+        else if (localNumber.length === 10) {
+            if (localNumber.startsWith('03') || localNumber.startsWith('06')) {
+                return localNumber.replace(/^(\d{2})(\d{4})(\d{4})$/, '$1-$2-$3');
+            } else {
+                return localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3');
+            }
+        }
+
+        // 上記以外の桁数の場合は、ハイフンなしで 0 始まりにしたものだけ返す
+        return localNumber;
+    }
+
+    // +81 以外（海外の番号や内線など）はそのまま返す
+    return phoneNumber;
+};
 
 export default function ContactHistory({ history, onRedial }: ContactHistoryProps) {
     // 簡易表示と詳細表示の切り替えState (初期値は簡易表示=true)
@@ -112,7 +140,7 @@ export default function ContactHistory({ history, onRedial }: ContactHistoryProp
                                     {record.type}
                                 </td>
                                 <td style={{ padding: '10px' }}>{record.queueName}</td>
-                                <td style={{ padding: '10px' }}>{record.phoneNumber}</td>
+                                <td style={{ padding: '10px' }}>{formatPhoneNumber(record.phoneNumber)}</td>
                                 <td style={{ padding: '10px' }}>
                                     {record.phoneNumber && record.phoneNumber !== '不明' && (
                                         <button

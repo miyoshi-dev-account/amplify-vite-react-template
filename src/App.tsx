@@ -1309,82 +1309,6 @@ function App() {
   );
 
   const renderOutboundTab = () => {
-    //const countryOptions = config ? Object.entries(config.countryCode).map(([label, value]) => ({
-    const countryOptions = config ? Object.entries(config?.countryCode ?? {}).map(([label, value]) => ({
-      label,
-      value
-    })) : [];
-
-    return (
-      <Suspense fallback={<div>{t('tab.outbound.loadingMessage')}</div>}>
-        <Container>
-          <SpaceBetween size="l">
-            <FormField label="発信キュー(発信者ID番号)">
-              <Select
-                selectedOption={
-                  availableQueues.find(q => q.queueARN === selectedQueueARN)
-                    ? {
-                      label: (() => {
-                        const queue = availableQueues.find(q => q.queueARN === selectedQueueARN);
-                        // 対策: queue が undefined の場合は空文字やデフォルトの文字列を返すようにする
-                        if (!queue) {
-                          return '';
-                        }
-                        const displayNumber = getQueueDisplayName(queue?.name);
-                        return displayNumber
-                          ? `${queue.name} (${displayNumber})`
-                          : queue.name;
-                      })(),
-                      value: selectedQueueARN
-                    }
-                    : null
-                }
-                onChange={({ detail }) => setSelectedQueueARN(detail.selectedOption.value ?? '')}
-                options={availableQueues.map(queue => ({
-                  label: getQueueDisplayName(queue.name)
-                    ? `${queue.name} (${getQueueDisplayName(queue.name)})`
-                    : queue.name,
-                  value: queue.queueARN
-                }))}
-              />
-            </FormField>
-
-            <FormField label="発信先電話番号">
-              <div className="phone-number-container">
-                <Select
-                  selectedOption={countryOptions.find(option => option.value === countryCode) ?? null}
-                  onChange={({ detail }) => setCountryCode(detail.selectedOption.value ?? '')}
-                  options={countryOptions}
-                  className="country-code-select"
-                />
-                <Input
-                  value={phoneNumberWithoutCode}
-                  onChange={({ detail }) => setPhoneNumberWithoutCode(detail.value)}
-                  placeholder="電話番号を入力してください"
-                  className="phone-number-input"
-                />
-                <Button
-                  variant="primary"
-                  onClick={handleOutboundCall}
-                  disabled={!phoneNumberWithoutCode || !selectedQueueARN || !voiceClientInstance}
-                >
-                  発信
-                </Button>
-              </div>
-            </FormField>
-
-            {outboundStatus && (
-              <Alert type={outboundStatus.includes('エラー') ? 'error' : 'success'}>
-                {outboundStatus}
-              </Alert>
-            )}
-          </SpaceBetween>
-        </Container>
-      </Suspense>
-    );
-  };
-
-  const renderOutboundTabTEST = () => {
     const countryOptions = config ? Object.entries(config?.countryCode ?? {}).map(([label, value]) => ({
       label,
       value
@@ -1702,7 +1626,7 @@ function App() {
                 label: "外線発信",
                 id: "outbound",
                 //content: renderOutboundTab()
-                content: renderOutboundTabTEST()
+                content: renderOutboundTab()
               },
               {
                 label: "自分の通話履歴",
@@ -1719,11 +1643,6 @@ function App() {
                     </Container>
                   </Suspense>
                 )
-              },
-              {
-                label: "コンタクト属性",
-                id: "attributes",
-                content: renderAttributesTab()
               },
               {
                 label: "クイック接続",
