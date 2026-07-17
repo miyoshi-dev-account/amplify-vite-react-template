@@ -593,6 +593,46 @@ function App() {
     }
   };
 
+  // 電話番号の表示形式を変換する関数
+  const formatDisplayPhoneNumber = (phoneNumber: string | null | undefined) => {
+    if (!phoneNumber || phoneNumber === '不明') return phoneNumber;
+
+    // '+81' で始まる日本の電話番号の場合
+    if (phoneNumber.startsWith('+81')) {
+      const localNumber = '0' + phoneNumber.slice(3);
+
+      if (localNumber.length === 11) {
+        return localNumber.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1-$2-$3');
+      } else if (localNumber.length === 10) {
+        if (localNumber.startsWith('03') || localNumber.startsWith('06')) {
+          return localNumber.replace(/^(\d{2})(\d{4})(\d{4})$/, '$1-$2-$3');
+        } else {
+          return localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3');
+        }
+      }
+      return localNumber;
+    }
+
+    // ==========================================
+    // 💡 追加: '+1' で始まる米国の電話番号の場合
+    // ==========================================
+    if (phoneNumber.startsWith('+1')) {
+      // '+1' を除いたローカル番号部分を取得 (+18774295743 -> 8774295743)
+      const localNumber = phoneNumber.slice(2);
+
+      // 米国の電話番号（10桁）の場合: 3桁-3桁-4桁 に変換
+      if (localNumber.length === 10) {
+        return `+1 ${localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')}`;
+      }
+
+      // 10桁以外の場合は、ハイフンなしでそのまま返す
+      return phoneNumber;
+    }
+
+    // +81, +1 以外（海外の番号や内線など）はそのまま返す
+    return phoneNumber;
+  };
+
   useEffect(() => {
     loadConfig().then(configData => {
       console.log('Config loaded:', configData);
@@ -1331,7 +1371,7 @@ function App() {
                         const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
 
                         return fetchedQueue?.outboundCallerName
-                          ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                          ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
                           : queue.name;
                       })(),
                       value: selectedQueueARN
@@ -1345,7 +1385,7 @@ function App() {
                   const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
                   return {
                     label: fetchedQueue?.outboundCallerName
-                      ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                      ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
                       : queue.name,
                     value: queue.queueARN
                   };
@@ -1477,7 +1517,7 @@ function App() {
                         const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
 
                         return fetchedQueue?.outboundCallerName
-                          ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                          ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
                           : queue.name;
                       })(),
                       value: selectedQueueARN
@@ -1491,7 +1531,7 @@ function App() {
                   const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
                   return {
                     label: fetchedQueue?.outboundCallerName
-                      ? `${queue.name} (${fetchedQueue.outboundCallerName})`
+                      ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
                       : queue.name,
                     value: queue.queueARN
                   };

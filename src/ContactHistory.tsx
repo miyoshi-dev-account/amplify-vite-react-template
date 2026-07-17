@@ -42,7 +42,21 @@ const formatPhoneNumber = (phoneNumber: string) => {
         return localNumber;
     }
 
-    // +81 以外（海外の番号や内線など）はそのまま返す
+    // '+1' で始まる米国の電話番号の場合
+    if (phoneNumber.startsWith('+1')) {
+        // '+1' を除いたローカル番号部分を取得 (+18774295743 -> 8774295743)
+        const localNumber = phoneNumber.slice(2);
+
+        // 米国の電話番号（10桁）の場合: 3桁-3桁-4桁 に変換
+        if (localNumber.length === 10) {
+            return `+1 ${localNumber.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')}`;
+        }
+
+        // 10桁以外の場合は、ハイフンなしでそのまま返す
+        return phoneNumber;
+    }
+
+    // +81, +1 以外（海外の番号や内線など）はそのまま返す
     return phoneNumber;
 };
 
