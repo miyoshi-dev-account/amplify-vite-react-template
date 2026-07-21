@@ -1672,11 +1672,11 @@ function App() {
                 content: (
                   <Suspense fallback={<div>{t('tab.history.loadingMessage')}</div>}>
                     <Container>
-                      <Button
+                      {/*<Button
                         onClick={() => window.open(config?.contactSearchUrl || '#', '_blank')}
                       >
                         通話履歴を開く
-                      </Button>
+                      </Button>*/}
                       <ContactHistory history={contactHistory} onRedial={handleRedial} />
                     </Container>
                   </Suspense>
