@@ -42,7 +42,8 @@ export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
             next: (data) => {
                 // data.items には、テーブル内のすべての最新レコードの配列が入ります
                 const items = data.items;
-                setMetricsData(items);
+                //setMetricsData(items);
+                setMetricsData([...data.items]);
 
                 // 配列の中から、1つでも contactsInQueue が 1 以上のキューがあるかを判定
                 // ※ some メソッドは条件に合致する要素が1つでもあれば true を返します
