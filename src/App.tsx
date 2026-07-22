@@ -1639,11 +1639,10 @@ function App() {
                 <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {filteredQuickConnects.map((qc, index) => {
 
-                    // 💡 3. クイック接続が「エージェント」かどうかを判定
-                    const isAgent = qc.type === 'agent' || qc.quickConnectType === 'agent';
+                    // クイック接続が「エージェント」かどうかを判定
+                    const isAgent = qc.type === 'agent' || qc.quickConnectType === 'agent' || qc.type === 'USER' || qc.quickConnectType === 'USER';
 
-                    // 💡 4. エージェントの場合、AppSyncのデータから該当するユーザー情報を検索
-                    // ※検索キー（qc.name と AppSync側の名前のプロパティ）は実際のデータ構造に合わせて変更してください。
+                    // エージェントの場合、AppSyncのデータから該当するユーザー情報を検索
                     const agentData = isAgent
                       ? appSyncUserList.find((user) => user.userName === qc.name)
                       : null;
