@@ -597,11 +597,18 @@ function App() {
 
     // 比較用に filterType を小文字化しておく
     const lowerFilterType = filterType?.toLowerCase();
+    const qcType = qc.type?.toLowerCase();
+    const qcQuickConnectType = qc.quickConnectType?.toLowerCase();
 
-    // SDKのレスポンス仕様に合わせて種類を判定
+    // Lambda経由の 'user' を 'agent' として扱う判定を追加
+    if (lowerFilterType === 'agent' && (qcType === 'user' || qcQuickConnectType === 'user')) {
+      return true;
+    }
+
+    // SDKのレスポンス仕様に合わせて種類を判定（大文字小文字を区別しない）
     return (
-      qc.type?.toLowerCase() === lowerFilterType ||
-      qc.quickConnectType?.toLowerCase() === lowerFilterType
+      qcType === lowerFilterType ||
+      qcQuickConnectType === lowerFilterType
     );
   });
 
