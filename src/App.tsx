@@ -595,8 +595,14 @@ function App() {
     // 'ALL' の場合はすべて表示
     if (filterType === 'ALL') return true;
 
+    // 比較用に filterType を小文字化しておく
+    const lowerFilterType = filterType?.toLowerCase();
+
     // SDKのレスポンス仕様に合わせて種類を判定
-    return qc.type === filterType || qc.quickConnectType === filterType;
+    return (
+      qc.type?.toLowerCase() === lowerFilterType ||
+      qc.quickConnectType?.toLowerCase() === lowerFilterType
+    );
   });
 
   // 通話履歴用
