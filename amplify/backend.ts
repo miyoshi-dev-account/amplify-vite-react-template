@@ -7,6 +7,7 @@ import { queueAlert } from "./functions/queueAlert/resource";
 import { updateContactAttributes } from './functions/updateContactAttributes/resource';
 import { getContactInfo } from './functions/getContactInfo/resource';
 import { searchQueues } from './functions/searchQueues/resource';
+import { listAllQuickConnects } from './functions/listAllQuickConnects/resource';
 
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -25,6 +26,7 @@ const backend = defineBackend({
   updateContactAttributes,
   getContactInfo,
   searchQueues,
+  listAllQuickConnects,
 });
 
 // --- ユーザーリスト取得用のLambda関数(fetchConnectUser)の定義 ---
@@ -137,5 +139,16 @@ backend.searchQueues.resources.lambda.addToRolePolicy(
       `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/queue/*`,
       `arn:aws:connect:ap-northeast-1:920071567018:instance/5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833/phone-number/*`
     ],
+  })
+);
+
+
+
+// --- クイック接続一覧を取得するLambda関数(listAllQuickConnects)の定義 ---
+
+backend.listAllQuickConnects.resources.lambda.addToRolePolicy(
+  new iam.PolicyStatement({
+    actions: ['connect:ListQuickConnects'],
+    resources: ['*'],
   })
 );
