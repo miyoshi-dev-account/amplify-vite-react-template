@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { updateContactAttributes } from '../functions/updateContactAttributes/resource';
 import { getContactInfo } from '../functions/getContactInfo/resource';
 import { searchQueues } from '../functions/searchQueues/resource';
+import { listAllQuickConnects } from '../functions/listAllQuickConnects/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -107,6 +108,18 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(searchQueues))
+    .authorization((allow) => [allow.publicApiKey()]),
+
+  /* クイック接続一覧取得用API（Lambda）定義 */
+  listAllQuickConnects: a
+    .query()
+    .returns(
+      a.customType({
+        success: a.boolean().required(),
+        quickConnects: a.string().required(), // JSON文字列として返す
+      })
+    )
+    .handler(a.handler.function(listAllQuickConnects))
     .authorization((allow) => [allow.publicApiKey()]),
 });
 
