@@ -1,4 +1,4 @@
-import { ConnectClient, ListQuickConnectsCommand } from "@aws-sdk/client-connect";
+import { ConnectClient, ListQuickConnectsCommand, DescribeQuickConnectCommand } from "@aws-sdk/client-connect";
 
 const client = new ConnectClient({});
 
@@ -14,26 +14,49 @@ export const handler = async (event: any) => {
 
         const response = await client.send(command);
 
-        // フロントエンドの SDK が返す形 (endpointARN, name等) にフォーマットを合わせる
-        const formattedConnects = response.QuickConnectSummaryList?.map(qc => {
-            // 大文字を小文字に変更
-            let mappedType = qc.QuickConnectType?.toLowerCase();
+        const formattedConnects = await Promise.all(
+            (response.QuickConnectSummaryList || []).map(async (qc) => {
+                // 大文字を小文字に変更
+                let mappedType = qc.QuickConnectType?.toLowerCase();
 
-            // 「USER」の場合は「agent」に変更
-            if (qc.QuickConnectType === 'USER') {
-                mappedType = 'agent';
-            }
+                // 「USER」の場合は「agent」に変更
+                if (qc.QuickConnectType === 'USER') {
+                    mappedType = 'agent';
+                }
 
-            // （※補足: 必要に応じて 'PHONE_NUMBER' を 'external' に置換する処理をここに足すことも可能です）
-            // if (qc.QuickConnectType === 'PHONE_NUMBER') mappedType = 'external';
+                // 返却するベースのオブジェクトを作成
+                const formattedData: any = {
+                    name: qc.Name,
+                    endpointARN: qc.Arn,
+                    type: mappedType
+                    //id: qc.Id
+                };
 
-            return {
-                name: qc.Name,
-                endpointARN: qc.Arn,
-                type: mappedType
-                //id: qc.Id
-            };
-        }) || [];
+                // phone_number の場合のみ詳細を取得し、phoneNumber を追加
+                if (mappedType === 'phone_number') {
+                    try {
+                        const describeCommand = new DescribeQuickConnectCommand({
+                            InstanceId: instanceId,
+                            QuickConnectId: qc.Id
+                        });
+
+                        const describeResponse = await client.send(describeCommand);
+
+                        // クイック接続の設定から電話番号を抽出
+                        const phoneNumber = describeResponse.QuickConnect?.QuickConnectConfig?.PhoneConfig?.PhoneNumber;
+
+                        // 電話番号が存在すればオブジェクトに追加
+                        if (phoneNumber) {
+                            formattedData.phoneNumber = phoneNumber;
+                        }
+                    } catch (descError) {
+                        console.error(`QuickConnect ${qc.Id} の詳細取得に失敗しました:`, descError);
+                    }
+                }
+
+                return formattedData;
+            })
+        );
 
         return {
             success: true,
