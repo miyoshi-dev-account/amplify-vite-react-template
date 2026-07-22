@@ -125,6 +125,7 @@ function App() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [appSyncUserList, setAppSyncUserList] = useState<Array<Schema['UserList']['type']>>([]);
   const [searchName, setSearchName] = useState<string>('');
+  const [selectedQuickConnectQueueARN, setSelectedQuickConnectQueueARN] = useState('ALL');
 
   // 通話履歴用
   // 履歴データの初期読み込み
@@ -531,7 +532,25 @@ function App() {
         return;
       }
 
-      const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
+      // UserList からログイン中エージェントの姓名を取得し結合する
+      // appSyncUserList から、ログイン中のエージェント(userName)と一致するレコードを検索
+      const currentUser = appSyncUserList.find(user => user.userName === agentInfo?.agentName);
+
+      // firstName と lastName を取得（null などの場合は空文字にする）
+      const firstName = currentUser?.firstName || '';
+      const lastName = currentUser?.lastName || '';
+
+      // 姓と名を結合して nameToSet を作成 (例: "山田 太郎")
+      let nameToSet = `${lastName} ${firstName}`.trim();
+
+      // ※万が一、UserListにデータが存在しなかった場合のフォールバック（Amazon Connectのログイン名を使用）
+      if (!nameToSet) {
+        console.warn("通知名が取得できませんでした");
+        nameToSet = agentInfo?.agentName || '不明なエージェント';
+      }
+
+      //変更前
+      //const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
 
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
       if (
@@ -731,15 +750,26 @@ function App() {
 
   // クイック接続一覧用
   useEffect(() => {
-    if (!selectedQueueARN) {
+    if (!selectedQuickConnectQueueARN) {
       setQuickConnects([]);
       return;
+    }
+
+    let targetQueueARNs: string[] = [selectedQuickConnectQueueARN];
+
+    if (selectedQuickConnectQueueARN === 'ALL') {
+      // インスタンス内の全キューのARNを配列化
+      targetQueueARNs = fetchedQueues.map(q => q.queueARN);
+
+      // APIの読み込みが間に合わず、全キューがまだ0件の場合は取得をスキップ
+      if (targetQueueARNs.length === 0) return;
     }
 
     const fetchQuickConnects = async () => {
       try {
         // Amazon Connect Agent Workspace SDK の API を使用してクイック接続を取得
-        const response = await agentClient.listQuickConnects([selectedQueueARN]);
+        //const response = await agentClient.listQuickConnects([selectedQuickConnectQueueARN]);
+        const response = await agentClient.listQuickConnects(targetQueueARNs);
 
         // 取得成功時、レスポンス内の quickConnects 配列をステートにセット [2]
         setQuickConnects(response.quickConnects || []);
@@ -753,7 +783,7 @@ function App() {
     };
 
     fetchQuickConnects();
-  }, [selectedQueueARN]);
+  }, [selectedQuickConnectQueueARN, fetchedQueues]);
 
   // クイック接続一覧用
   useEffect(() => {
@@ -1505,10 +1535,28 @@ function App() {
             <FormField label="所属キュー">
               <Select
                 selectedOption={
-                  availableQueues.find(q => q.queueARN === selectedQueueARN)
+                  selectedQuickConnectQueueARN === 'ALL'
+                    ? { label: 'すべての接続', value: 'ALL' }
+                    : (() => {
+                      // 💡 選択中のキュー情報を取得
+                      const queue = availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN);
+                      if (!queue) return null;
+
+                      // 💡 fetchedQueuesから電話番号を取得し、フォーマット変換を適用
+                      const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+                      const labelText = fetchedQueue?.outboundCallerName
+                        ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
+                        : queue.name;
+
+                      return {
+                        label: labelText,
+                        value: selectedQuickConnectQueueARN
+                      };
+                    })()
+                  /*: availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN)
                     ? {
                       label: (() => {
-                        const queue = availableQueues.find(q => q.queueARN === selectedQueueARN);
+                        const queue = availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN);
                         if (!queue) return '';
 
                         // fetchedQueues の中から、該当するキューの付加情報（発信者名）を探す
@@ -1518,26 +1566,31 @@ function App() {
                           ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
                           : queue.name;
                       })(),
-                      value: selectedQueueARN
+                      value: selectedQuickConnectQueueARN
                     }
-                    : null
+                    : null*/
                 }
-                onChange={({ detail }) => setSelectedQueueARN(detail.selectedOption.value ?? '')}
+                onChange={({ detail }) => setSelectedQuickConnectQueueARN(detail.selectedOption.value ?? '')}
 
                 // availableQueues をベースにして選択肢を作り、表示名だけ fetchedQueues から補完する
-                options={availableQueues.map(queue => {
-                  const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
-                  return {
-                    label: fetchedQueue?.outboundCallerName
-                      ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
-                      : queue.name,
-                    value: queue.queueARN
-                  };
-                })}
+                options={[
+                  // 先頭に「すべての接続」を追加
+                  { label: 'すべての接続', value: 'ALL' },
+
+                  // 既存のキュー一覧を展開し、それぞれにフォーマット変換を適用
+                  ...availableQueues.map(queue => {
+                    const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
+                    return {
+                      label: fetchedQueue?.outboundCallerName
+                        ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
+                        : queue.name,
+                      value: queue.queueARN
+                    };
+                  })]}
               />
             </FormField>
 
-            {/* 👇 新規追加：絞り込み条件を選択するドロップダウン 👇 */}
+            {/* 絞り込み条件を選択するドロップダウン */}
             <FormField label="クイック接続の種類">
               <Select
                 selectedOption={{
@@ -1556,7 +1609,7 @@ function App() {
               />
             </FormField>
 
-            {/* 👇 修正：元の quickConnects ではなく、絞り込み後の filteredQuickConnects を展開する 👇 */}
+            {/* 元の quickConnects ではなく、絞り込み後の filteredQuickConnects を展開する */}
             <FormField label="クイック接続一覧">
               {filteredQuickConnects.length > 0 ? (
                 <ul style={{ margin: 0, padding: 0, listStyleType: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
