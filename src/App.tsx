@@ -768,13 +768,24 @@ function App() {
     const fetchQuickConnects = async () => {
       try {
         // Amazon Connect Agent Workspace SDK の API を使用してクイック接続を取得
-        //const response = await agentClient.listQuickConnects([selectedQuickConnectQueueARN]);
-        const response = await agentClient.listQuickConnects(targetQueueARNs);
+        //const response = await agentClient.listQuickConnects(targetQueueARNs);
 
         // 取得成功時、レスポンス内の quickConnects 配列をステートにセット [2]
-        setQuickConnects(response.quickConnects || []);
+        //setQuickConnects(response.quickConnects || []);
 
-        // ※ もし500件以上あり、次ページがある場合は response.nextToken が返ります [2]
+        if (selectedQuickConnectQueueARN === 'ALL') {
+          // Amplify(Lambda) 経由で取得
+          const response = await client.queries.listAllQuickConnects();
+          if (response.data?.success) {
+            setQuickConnects(JSON.parse(response.data.quickConnects));
+          } else {
+            setQuickConnects([]);
+          }
+        } else {
+          // 💡 既存の処理: 個別のキューが選ばれた場合はエージェントAPIを使用する
+          const response = await agentClient.listQuickConnects(targetQueueARNs);
+          setQuickConnects(response.quickConnects || []);
+        }
 
       } catch (error) {
         console.error("クイック接続の取得に失敗しました:", error);
