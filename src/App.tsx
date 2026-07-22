@@ -536,7 +536,8 @@ function App() {
       // appSyncUserList から、ログイン中のエージェント(userName)と一致するレコードを検索
       const currentUser = appSyncUserList.find(user => user.userName === agentInfo?.agentName);
       console.log(`----- ログインユーザー -----: ${currentUser}`);
-      console.log(`----- クイック接続情報 -----: ${qc}`);
+      console.log(`----- agentInfo?.agentName -----: ${agentInfo?.agentName}`);
+      console.log(`----- クイック接続情報 -----: ${JSON.stringify(qc)}`);
 
       // firstName と lastName を取得（null などの場合は空文字にする）
       const firstName = currentUser?.firstName || '';
