@@ -534,8 +534,9 @@ function App() {
 
       // UserList からログイン中エージェントの姓名を取得し結合する
       // appSyncUserList から、ログイン中のエージェント(userName)と一致するレコードを検索
-      const currentUser = appSyncUserList.find(user => user.userName === agentInfo?.agentName);
-      console.log(`----- ログインユーザー -----: ${currentUser}`);
+      //const currentUser = appSyncUserList.find(user => user.userName === agentInfo?.agentName);
+      const currentUser = appSyncUserList.find(user => user.agentId === agentInfo?.agentId);
+      console.log(`----- ログインユーザー -----: ${JSON.stringify(currentUser)}`);
       console.log(`----- agentInfo?.agentName -----: ${agentInfo?.agentName}`);
       console.log(`----- クイック接続情報 -----: ${JSON.stringify(qc)}`);
 

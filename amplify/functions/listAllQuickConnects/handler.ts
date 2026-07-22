@@ -15,12 +15,25 @@ export const handler = async (event: any) => {
         const response = await client.send(command);
 
         // フロントエンドの SDK が返す形 (endpointARN, name等) にフォーマットを合わせる
-        const formattedConnects = response.QuickConnectSummaryList?.map(qc => ({
-            name: qc.Name,
-            endpointARN: qc.Arn,
-            type: qc.QuickConnectType
-            //id: qc.Id
-        })) || [];
+        const formattedConnects = response.QuickConnectSummaryList?.map(qc => {
+            // 大文字を小文字に変更
+            let mappedType = qc.QuickConnectType?.toLowerCase();
+
+            // 「USER」の場合は「agent」に変更
+            if (qc.QuickConnectType === 'USER') {
+                mappedType = 'agent';
+            }
+
+            // （※補足: 必要に応じて 'PHONE_NUMBER' を 'external' に置換する処理をここに足すことも可能です）
+            // if (qc.QuickConnectType === 'PHONE_NUMBER') mappedType = 'external';
+
+            return {
+                name: qc.Name,
+                endpointARN: qc.Arn,
+                type: mappedType
+                //id: qc.Id
+            };
+        }) || [];
 
         return {
             success: true,
