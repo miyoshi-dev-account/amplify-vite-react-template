@@ -14,12 +14,12 @@ export const handler = async (event: any) => {
 
         const response = await client.send(command);
 
-        // 💡 フロントエンドの SDK が返す形 (endpointARN, name等) にフォーマットを合わせる
+        // フロントエンドの SDK が返す形 (endpointARN, name等) にフォーマットを合わせる
         const formattedConnects = response.QuickConnectSummaryList?.map(qc => ({
             name: qc.Name,
             endpointARN: qc.Arn,
-            type: qc.QuickConnectType,
-            id: qc.Id
+            type: qc.QuickConnectType
+            //id: qc.Id
         })) || [];
 
         return {
