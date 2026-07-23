@@ -759,23 +759,25 @@ function App() {
   useEffect(() => {
     if (agentInfo?.routingProfile?.queues) {
       // queue.name が存在し、かつ 'AllQueue' ではないものを抽出して変数に格納する
+      /*
       const filteredQueues = agentInfo.routingProfile.queues.filter(
         (queue: QueueData) => queue.name && queue.name !== 'AllQueue'
       );
+      */
 
       // 抽出した配列を availableQueues にセットする
-      setAvailableQueues(filteredQueues);
-      //setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
+      //setAvailableQueues(filteredQueues);
+      setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
 
       // 抽出した配列（filteredQueues）の0番目を初期選択としてセットする
+      /*
       if (filteredQueues.length > 0) {
         setSelectedQueueARN(filteredQueues.queueARN);
       }
-      /*
+      */
       if (agentInfo.routingProfile.queues.length > 0) {
         setSelectedQueueARN(agentInfo.routingProfile.queues[0].queueARN);
       }
-      */
     }
   }, [agentInfo]);
 
@@ -1543,37 +1545,6 @@ function App() {
       <Suspense fallback={<div>{t('tab.userList.loadingMessage')}</div>}>
         <Container>
           <SpaceBetween size="l">
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-              {/* 転送時の通知名 入力欄 */}
-              <div style={{ /*marginBottom: '16px', */display: 'flex', alignItems: 'center' }}>
-                <label htmlFor="customNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
-                  転送時の通知名:
-                </label>
-                <input
-                  id="customNameInput"
-                  type="text"
-                  value={transferCustomName}
-                  onChange={(e) => setTransferCustomName(e.target.value)}
-                  placeholder="例: 山田太郎"
-                  style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                />
-              </div>
-
-              {/* クイック接続名の検索入力欄 */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <label htmlFor="searchNameInput" style={{ marginRight: '8px', fontWeight: 'bold' }}>
-                  接続名で検索:
-                </label>
-                <input
-                  id="searchNameInput"
-                  type="text"
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                  placeholder="検索する文字列"
-                  style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                />
-              </div>
-            </div>
             <FormField label="所属キュー">
               <Select
                 selectedOption={
@@ -1595,22 +1566,6 @@ function App() {
                         value: selectedQuickConnectQueueARN
                       };
                     })()
-                  /*: availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN)
-                    ? {
-                      label: (() => {
-                        const queue = availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN);
-                        if (!queue) return '';
-
-                        // fetchedQueues の中から、該当するキューの付加情報（発信者名）を探す
-                        const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
-
-                        return fetchedQueue?.outboundCallerName
-                          ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
-                          : queue.name;
-                      })(),
-                      value: selectedQuickConnectQueueARN
-                    }
-                    : null*/
                 }
                 onChange={({ detail }) => setSelectedQuickConnectQueueARN(detail.selectedOption.value ?? '')}
 
