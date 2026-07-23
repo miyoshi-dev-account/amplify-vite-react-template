@@ -758,10 +758,24 @@ function App() {
 
   useEffect(() => {
     if (agentInfo?.routingProfile?.queues) {
-      setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
+      // queue.name が存在し、かつ 'AllQueue' ではないものを抽出して変数に格納する
+      const filteredQueues = agentInfo.routingProfile.queues.filter(
+        (queue: QueueData) => queue.name && queue.name !== 'AllQueue'
+      );
+
+      // 抽出した配列を availableQueues にセットする
+      setAvailableQueues(filteredQueues);
+      //setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
+
+      // 抽出した配列（filteredQueues）の0番目を初期選択としてセットする
+      if (filteredQueues.length > 0) {
+        setSelectedQueueARN(filteredQueues.queueARN);
+      }
+      /*
       if (agentInfo.routingProfile.queues.length > 0) {
         setSelectedQueueARN(agentInfo.routingProfile.queues[0].queueARN);
       }
+      */
     }
   }, [agentInfo]);
 
