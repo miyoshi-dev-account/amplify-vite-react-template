@@ -1190,9 +1190,12 @@ function App() {
                   updateQueueName = contactInfo.queueName;
                 }
 
-                console.log(`タイプ：${updatedType}`);
-                console.log(`タイプ：${updateQueueName}`);
-                console.log(`タイプ：${contactInfo.phoneNumber}`);
+                console.log(`タイプ1：${contactInfo.initiationMethod}`);
+                console.log(`タイプ2：${updatedType}`);
+                console.log(`タイプ3：${record.type}`);
+                console.log(`タイプ4：${r.type}`);
+                console.log(`キュー：${updateQueueName}`);
+                console.log(`電話番号：${contactInfo.phoneNumber}`);
 
                 return {
                   ...r,
