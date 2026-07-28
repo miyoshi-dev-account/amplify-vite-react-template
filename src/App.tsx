@@ -994,7 +994,8 @@ function App() {
       }
 
       if (isMissed) {
-        typeStr = isIncomingContact ? '不在着信' : '不在発信';
+        //typeStr = isIncomingContact ? '不在着信' : '不在発信';
+        typeStr = '確認中';
       } else {
         typeStr = isIncomingContact ? '着信' : '発信';
       }
@@ -1103,51 +1104,10 @@ function App() {
           });
         }
 
-        /*
-        if (
-          contactId && initialContactId &&
-          initialContactId !== '-' && initialContactId !== 'unknown-id' &&
-          contactId !== '-' && contactId !== 'unknown-id'
-        ) {
-          // 転送通話か確認
-          if (contactId !== initialContactId) {
-            // 転送通話の場合
-            // 転送元コンタクトIDの参照
-            const responseCurrent = await client.queries.getContactInfo({
-              instanceId: connectInstanceId,
-              contactId: initialContactId,
-            });
-            console.log("転送元コンタクト情報:", initialContactId);
-            console.log(responseCurrent);
-          } else {
-            // 転送通話ではない場合
-            // 転送先コンタクトIDの参照
-            const responseTrans = await client.queries.getContactInfo({
-              instanceId: connectInstanceId,
-              contactId: contactId,
-            });
-            console.log("転送先コンタクト情報:", contactId);
-            console.log(responseTrans);
-          }
-
-        }
-        */
         console.log("onMissed からの履歴保存処理が完了しました");
       } catch (e) {
         console.warn("コンタクト情報の参照APIエラー", e);
       }
-
-      /*
-      try {
-        console.log("onMissed から handleSaveHistory を実行します");
-        // 💡 確実に isMissed = true として履歴保存を実行する
-        await handleSaveHistory(data, true);
-        console.log("onMissed からの履歴保存処理が完了しました");
-      } catch (error) {
-        // 💡 もし handleSaveHistory の内部でエラーが起きていれば、ここでキャッチして赤文字で表示する
-        console.error("履歴保存中に予期せぬエラーが発生しました:", error);
-      }
-      */
     };
 
     // ログアウトまたはオフライン検知時のリセット処理 →　動いていないので要修正
@@ -1191,7 +1151,8 @@ function App() {
       // queueName または phoneNumber が「不明」のままのレコードを抽出
       const incompleteRecords = currentHistory.filter(
         record => record.queueName === '不明' || record.phoneNumber === '不明' ||
-          record.queueName === '' || record.phoneNumber === ''
+          record.queueName === '' || record.phoneNumber === '' ||
+          record.type === '確認中'
       );
 
       if (incompleteRecords.length === 0) return;
