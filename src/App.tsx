@@ -1179,8 +1179,14 @@ function App() {
                 if (contactInfo.initiationMethod === 'OUTBOUND') {
                   // 暫定で「着信」系になっていたものを「発信」系に修正
                   updatedType = record.type === '不在着信' ? '不在発信' : (record.type === '着信' ? '発信' : r.type);
+                  if (updatedType === '確認中') {
+                    updatedType = '不在発信';
+                  }
                 } else if (contactInfo.initiationMethod === 'INBOUND') {
                   updatedType = record.type === '不在発信' ? '不在着信' : (record.type === '発信' ? '着信' : r.type);
+                  if (updatedType === '確認中') {
+                    updatedType = '不在着信';
+                  }
                 }
 
                 // 転送した場合か確認
