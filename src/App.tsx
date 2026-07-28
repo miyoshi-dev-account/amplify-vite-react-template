@@ -1190,6 +1190,10 @@ function App() {
                   updateQueueName = contactInfo.queueName;
                 }
 
+                console.log(`タイプ：${updatedType}`);
+                console.log(`タイプ：${updateQueueName}`);
+                console.log(`タイプ：${contactInfo.phoneNumber}`);
+
                 return {
                   ...r,
                   //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : r.queueName,
