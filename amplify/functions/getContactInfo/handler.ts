@@ -34,12 +34,23 @@ export const handler = async (event: Schema["getContactInfo"]["functionHandler"]
         // キューの情報を取得
         let queueName = '不明';
         if (contact?.QueueInfo?.Id) {
-            const queueCommand = new DescribeQueueCommand({
-                InstanceId: instanceId,
-                QueueId: contact?.QueueInfo?.Id,
-            });
-            const queueResponse = await client.send(queueCommand);
-            queueName = queueResponse?.Queue?.Name || '不明';
+            try {
+                const queueCommand = new DescribeQueueCommand({
+                    InstanceId: instanceId,
+                    QueueId: contact?.QueueInfo?.Id,
+                });
+                const queueResponse = await client.send(queueCommand);
+                queueName = queueResponse?.Queue?.Name || '不明';
+            } catch (queueError: any) {
+                // ResourceNotFoundException 等が発生した場合、中断せずにログを出力して続行する
+                if (queueError.name === 'ResourceNotFoundException') {
+                    console.warn(`キュー情報が見つかりませんでした (QueueId: ${contact.QueueInfo.Id})。キュー名を 'エージェントキュー' として処理を継続します。`);
+                    queueName = 'エージェントキュー';
+                } else {
+                    console.warn(`キュー情報の取得中にエラーが発生しました: ${queueError.message}`);
+                }
+                // エラー時は queueName = '不明' のまま後続処理に進みます
+            }
         }
 
         // フロントエンドで扱いやすい形に整形して返す
