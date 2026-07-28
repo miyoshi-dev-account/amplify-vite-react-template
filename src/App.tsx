@@ -1187,6 +1187,12 @@ function App() {
                   if (updatedType === '確認中') {
                     updatedType = '不在着信';
                   }
+                } else {
+                  // 転送（TRANSFER）の場合
+                  updatedType = record.type === '不在発信' ? '不在着信' : (record.type === '発信' ? '着信' : r.type);
+                  if (updatedType === '確認中') {
+                    updatedType = '不在着信';
+                  }
                 }
 
                 // 転送した場合か確認
