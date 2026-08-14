@@ -5,11 +5,8 @@ import { AmazonConnectApp, AppContactScope } from "@amazon-connect/app";
 import { AgentClient, /*AgentStateChangedEventData,*/ ContactClient } from "@amazon-connect/contact";
 import { VoiceClient } from "@amazon-connect/voice";
 import { applyConnectTheme } from "@amazon-connect/theme";
-//import { loadConfig } from './config';
 import loadConfig from './config.ts';
 
-//import { UserList } from './UserList';
-import UserList from './UserList.tsx';
 import QueueMonitor from './QueueMonitor.tsx';
 import type { Schema } from '../amplify/data/resource';
 import { generateClient } from 'aws-amplify/data';
@@ -503,11 +500,7 @@ function App() {
   // クイック接続一覧用
   const updateAttributesViaBackend = async (contactId: string, customName: string, queueName: string) => {
     try {
-      // ※ instanceId は Connect の ARN や設定から取得してください
-      //const connectInstanceId = "5c9f7d3e-d54b-4d4c-aec6-ccd7308dc833";
-
       const response = await client.queries.updateContactAttributes({
-        //instanceId: connectInstanceId,
         contactId: contactId,
         customName: customName,
         queueName: queueName
@@ -534,11 +527,7 @@ function App() {
 
       // UserList からログイン中エージェントの姓名を取得し結合する
       // appSyncUserList から、ログイン中のエージェント(userName)と一致するレコードを検索
-      //const currentUser = appSyncUserList.find(user => user.userName === agentInfo?.agentName);
       const currentUser = appSyncUserList.find(user => user.agentId === agentInfo?.agentId);
-      console.log(`----- ログインユーザー -----: ${JSON.stringify(currentUser)}`);
-      console.log(`----- agentInfo?.agentName -----: ${agentInfo?.agentName}`);
-      console.log(`----- クイック接続情報 -----: ${JSON.stringify(qc)}`);
 
       // firstName と lastName を取得（null などの場合は空文字にする）
       const firstName = currentUser?.firstName || '';
@@ -547,14 +536,11 @@ function App() {
       // 姓と名を結合して nameToSet を作成 (例: "山田 太郎")
       let nameToSet = `${lastName} ${firstName}`.trim();
 
-      // ※万が一、UserListにデータが存在しなかった場合のフォールバック（Amazon Connectのログイン名を使用）
+      // 万が一、UserListにデータが存在しなかった場合のフォールバック（Amazon Connectのログイン名を使用）
       if (!nameToSet) {
         console.warn("通知名が取得できませんでした");
         nameToSet = agentInfo?.agentName || '不明なエージェント';
       }
-
-      //変更前
-      //const nameToSet = transferCustomName.trim() !== '' ? transferCustomName.trim() : "担当者";
 
       // 転送を実行する前に、Lambda経由でコンタクト属性に名前をセットする
       if (
@@ -758,23 +744,9 @@ function App() {
 
   useEffect(() => {
     if (agentInfo?.routingProfile?.queues) {
-      // queue.name が存在し、かつ 'AllQueue' ではないものを抽出して変数に格納する
-      /*
-      const filteredQueues = agentInfo.routingProfile.queues.filter(
-        (queue: QueueData) => queue.name && queue.name !== 'AllQueue'
-      );
-      */
-
       // 抽出した配列を availableQueues にセットする
-      //setAvailableQueues(filteredQueues);
       setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
 
-      // 抽出した配列（filteredQueues）の0番目を初期選択としてセットする
-      /*
-      if (filteredQueues.length > 0) {
-        setSelectedQueueARN(filteredQueues.queueARN);
-      }
-      */
       if (agentInfo.routingProfile.queues.length > 0) {
         setSelectedQueueARN(agentInfo.routingProfile.queues[0].queueARN);
       }
@@ -800,12 +772,6 @@ function App() {
 
     const fetchQuickConnects = async () => {
       try {
-        // Amazon Connect Agent Workspace SDK の API を使用してクイック接続を取得
-        //const response = await agentClient.listQuickConnects(targetQueueARNs);
-
-        // 取得成功時、レスポンス内の quickConnects 配列をステートにセット [2]
-        //setQuickConnects(response.quickConnects || []);
-
         if (selectedQuickConnectQueueARN === 'ALL') {
           // Amplify(Lambda) 経由で取得
           const response = await client.queries.listAllQuickConnects();
@@ -853,7 +819,6 @@ function App() {
 
     // 同一の画面内でカスタムイベントが発火した際の処理
     const handleLocalUpdate = () => {
-      //const savedData = localStorage.getItem('agentContactHistory');
       const savedData = sessionStorage.getItem('agentContactHistory');
       if (savedData) {
         setContactHistory(JSON.parse(savedData));
@@ -891,16 +856,13 @@ function App() {
 
     // コンタクトが繋がった「開始時間」をストレージに一時保存する
     const setStartTime = (cId: string) => {
-      //const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
       const times = JSON.parse(sessionStorage.getItem('contactStartTimes') || '{}');
       times[cId] = Date.now();
-      //localStorage.setItem('contactStartTimes', JSON.stringify(times));
       sessionStorage.setItem('contactStartTimes', JSON.stringify(times));
     };
 
     // 開始時間から通話時間を計算し、一時保存をクリアする
     const getStartTimeAndDuration = (cId: string) => {
-      //const times = JSON.parse(localStorage.getItem('contactStartTimes') || '{}');
       const times = JSON.parse(sessionStorage.getItem('contactStartTimes') || '{}');
       const startMs = times[cId];
       if (!startMs) return { startTime: '不明', duration: '00:00' };
@@ -911,7 +873,6 @@ function App() {
       const s = String(durationSeconds % 60).padStart(2, '0');
 
       delete times[cId];
-      //localStorage.setItem('contactStartTimes', JSON.stringify(times));
       sessionStorage.setItem('contactStartTimes', JSON.stringify(times));
       return { startTime: startObj.toLocaleTimeString(), duration: `${m}:${s}` };
     };
@@ -994,7 +955,6 @@ function App() {
       }
 
       if (isMissed) {
-        //typeStr = isIncomingContact ? '不在着信' : '不在発信';
         typeStr = '確認中';
       } else {
         typeStr = isIncomingContact ? '着信' : '発信';
@@ -1012,13 +972,11 @@ function App() {
       console.log("追加するレコード：", newRecord);
 
       // ストレージへ即時保存してState更新
-      //const savedData = localStorage.getItem('agentContactHistory');
       const savedData = sessionStorage.getItem('agentContactHistory');
       const currentHistory: ContactRecord[] = savedData ? JSON.parse(savedData) : [];
 
       if (!currentHistory.some(record => record.contactId === contactId)) {
         const updatedHistory = [newRecord, ...currentHistory];
-        //localStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
         sessionStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
         setContactHistory(updatedHistory);
       }
@@ -1084,7 +1042,6 @@ function App() {
                     return {
                       ...record,
                       // Lambdaから取得できた場合のみ上書き
-                      //queueName: contactInfo.transferQueueName !== '不明' ? contactInfo.transferQueueName : record.queueName,
                       queueName: updateQueueName,
                       phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : record.phoneNumber,
                       type: updatedType,
@@ -1138,11 +1095,11 @@ function App() {
 
   // 通話履歴用(転送時の不在着信の対策)
   useEffect(() => {
-    // 💡 対策1: 通話履歴タブが選択された時のみ実行するように条件を追加
+    // 通話履歴タブが選択された時のみ実行するように条件を追加
     if (activeTab !== 'history') return;
 
     const recoverIncompleteHistory = async () => {
-      // 💡 対策2: localStorage ではなく sessionStorage を参照する
+      // localStorage ではなく sessionStorage を参照する
       const savedData = sessionStorage.getItem('agentContactHistory');
       if (!savedData) return;
 
@@ -1202,16 +1159,8 @@ function App() {
                   updateQueueName = contactInfo.queueName;
                 }
 
-                console.log(`タイプ1：${contactInfo.initiationMethod}`);
-                console.log(`タイプ2：${updatedType}`);
-                console.log(`タイプ3：${record.type}`);
-                console.log(`タイプ4：${r.type}`);
-                console.log(`キュー：${updateQueueName}`);
-                console.log(`電話番号：${contactInfo.phoneNumber}`);
-
                 return {
                   ...r,
-                  //queueName: contactInfo.queueName !== '不明' ? contactInfo.queueName : r.queueName,
                   queueName: updateQueueName,
                   phoneNumber: contactInfo.phoneNumber !== '不明' ? contactInfo.phoneNumber : r.phoneNumber,
                   type: updatedType,
@@ -1230,111 +1179,14 @@ function App() {
       if (isUpdated) {
         console.log("履歴のリカバリが完了し、データを更新しました。");
         setContactHistory(updatedHistory);
-        sessionStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory)); // 💡 ここも sessionStorage に変更
+        sessionStorage.setItem('agentContactHistory', JSON.stringify(updatedHistory));
       }
     };
 
     recoverIncompleteHistory();
 
-    // 対策3: 依存配列に activeTab を入れ、タブが切り替わるたびにこの useEffect を評価させる
+    // 依存配列に activeTab を入れ、タブが切り替わるたびにこの useEffect を評価させる
   }, [activeTab]);
-
-  // 転送時の通知用 ※削除予定
-  useEffect(() => {
-    if (
-      contactInfo &&
-      contactInfo.id && contactInfo.id !== '-' &&
-      contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'// &&
-      //contactInfo.queueName && contactInfo.queueName == '-'
-    ) {
-      // 通知済みか確認
-      if (notifiedTransferContacts.current.has(contactInfo.id)) {
-        return;
-      }
-
-      const fetchAttributes = async () => {
-        if (
-          contactInfo &&
-          contactInfo.id && contactInfo.id !== '-' &&
-          contactInfo.phoneNumber && contactInfo.phoneNumber !== '-'
-        ) {
-          try {
-            // 💡 修正: 過去の仕様に合わせ、引数をオブジェクト形式にし、(contactClient as any) を使用
-            const attributes = await contactClient.getAttributes(contactInfo.id, ["TransferCustomName"]);
-
-            console.log(attributes);
-            const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
-
-            if (transferName) {
-              // 通知メッセージをStateにセットして画面に表示させる
-              setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
-
-              // 切断時に通知されないようにコンタクトIDを登録
-              notifiedTransferContacts.current.add(contactInfo.id);
-
-              // 10秒後 (10000ミリ秒後) に自動的に通知を消す
-              setTimeout(() => {
-                setTransferNotification(null);
-              }, 10000);
-            } else {
-              console.log("転送先に通知する名前が設定されていませんでした");
-              return;
-            }
-
-          } catch (e) {
-            console.error("転送先通知処理にてエラーが発生しました", e);
-          }
-        }
-      };
-      fetchAttributes();
-    } else {
-      console.error("------ contactInfoが更新されました（転送先通知用） ------");
-      console.error(contactInfo); //着信時点だと空
-      console.error(AppContactScope.CurrentContactId); //着信時点だと空
-
-      const eFetchAttributes = async () => {
-        try {
-          // 転送元で設定したコンタクト属性を取得
-          const initialContactId = await contactClient.getInitialContactId(AppContactScope.CurrentContactId);
-          console.error(initialContactId);
-          const contacts = await contactClient.listContacts();
-          console.log(`Active contacts: ${contacts.length}`);
-          contacts.forEach((contact) => {
-            console.log(`Contact ${contact.contactId}: ${contact.type}`);
-          });
-
-          /*
-          // 転送元で設定したコンタクト属性を取得
-          const attributes = await contactClient.getAttributes(contactId, ["TransferCustomName"]);
-
-          console.log(attributes);
-          const transferName = (attributes?.TransferCustomName as any)?.value || attributes?.TransferCustomName;
-
-          if (transferName) {
-            // 通知メッセージをStateにセットして画面に表示させる
-            setTransferNotification(`🔔 ${transferName} さんからの転送通話です`);
-
-            // 切断時に通知されないようにコンタクトIDを登録
-            notifiedTransferContacts.current.add(contactInfo.id);
-
-            // 10秒後 (10000ミリ秒後) に自動的に通知を消す
-            setTimeout(() => {
-              setTransferNotification(null);
-            }, 10000);
-          } else {
-            console.log("転送先に通知する名前が設定されていませんでした");
-            return;
-          }
-            */
-
-        } catch (e) {
-          console.error("転送先通知処理にてエラーが発生しました", e);
-        }
-      };
-      eFetchAttributes();
-    }
-
-  }, [contactInfo]);
 
   // 発信先通知番号の選択用
   useEffect(() => {
@@ -1366,37 +1218,6 @@ function App() {
         description={`Status: ${status} | Version: ${config?.version || 'N/A'}`}
       >
       </Header>
-    </Suspense>
-  );
-
-  const renderContactInfo = () => (
-    <Suspense fallback={<div>{t('contact.info.loadingMessage')}</div>}>
-      <ColumnLayout columns={2} variant="text-grid">
-        <div>
-          <Box variant="awsui-key-label">
-            <Box fontWeight="bold">コンタクトID</Box>
-          </Box>
-          <Box variant="p">{contactInfo?.id || '-'}</Box>
-        </div>
-        <div>
-          <Box variant="awsui-key-label">
-            <Box fontWeight="bold">キュー名</Box>
-          </Box>
-          <Box variant="p">{contactInfo?.queueName || '-'}</Box>
-        </div>
-        <div>
-          <Box variant="awsui-key-label">
-            <Box fontWeight="bold">電話番号</Box>
-          </Box>
-          <Box variant="p">{contactInfo?.phoneNumber || '-'}</Box>
-        </div>
-        <div>
-          <Box variant="awsui-key-label">
-            <Box fontWeight="bold">更新日時</Box>
-          </Box>
-          <Box variant="p">{contactInfo?.timestamp || '-'}</Box>
-        </div>
-      </ColumnLayout>
     </Suspense>
   );
 
@@ -1480,46 +1301,6 @@ function App() {
     );
   };
 
-  const renderContactAttribute = (key: React.Key | null | undefined) => {
-    // 対策1: keyが文字列(string)でない場合は早期リターンする（型ガード）
-    // これにより、以降の処理ではTypeScriptが key を確実に「string型」として認識します
-    if (typeof key !== 'string') {
-      return null;
-    }
-
-    const allowedKeys = Object.keys(config?.contactAttributes || {});
-    if (!allowedKeys.includes(key)) {
-      return null;
-    }
-
-    return (
-      <div key={key}>
-        <Box variant="awsui-key-label">
-          <Box fontWeight="bold">{config?.contactAttributes?.[key]}</Box>
-        </Box>
-        <Box variant="p">{contactAttributes[key]?.value || '-'}</Box>
-      </div>
-    );
-  };
-
-  const renderAttributesTab = () => (
-    <Suspense fallback={<div>{t('tab.attribute.loadingMessage')}</div>}>
-      <Container>
-        {hasActiveContact && config ? (
-          <SpaceBetween size="l">
-            <ColumnLayout columns={2} variant="text-grid">
-              {Object.keys(config?.contactAttributes || {}).map(renderContactAttribute)}
-            </ColumnLayout>
-          </SpaceBetween>
-        ) : (
-          <Alert type="info">
-            通話が確立されると、コンタクト属性が表示されます。
-          </Alert>
-        )}
-      </Container>
-    </Suspense>
-  );
-
   const renderUserListTab = () => {
     return (
       <Suspense fallback={<div>{t('tab.userList.loadingMessage')}</div>}>
@@ -1531,11 +1312,11 @@ function App() {
                   selectedQuickConnectQueueARN === 'ALL'
                     ? { label: 'すべての接続', value: 'ALL' }
                     : (() => {
-                      // 💡 選択中のキュー情報を取得
+                      // 選択中のキュー情報を取得
                       const queue = availableQueues.find(q => q.queueARN === selectedQuickConnectQueueARN);
                       if (!queue) return null;
 
-                      // 💡 fetchedQueuesから電話番号を取得し、フォーマット変換を適用
+                      // fetchedQueuesから電話番号を取得し、フォーマット変換を適用
                       const fetchedQueue = fetchedQueues.find(fq => fq.queueARN === queue.queueARN);
                       const labelText = fetchedQueue?.outboundCallerName
                         ? `${queue.name} (${formatDisplayPhoneNumber(fetchedQueue.outboundCallerName)})`
@@ -1656,11 +1437,9 @@ function App() {
                 </div>
               )}
             </FormField>
-            {/* 👆 新規追加部分ここまで 👆 */}
 
           </SpaceBetween>
         </Container>
-        {/*<UserList />*/}
       </Suspense>
     );
   };
@@ -1670,29 +1449,12 @@ function App() {
       <div className="app">
         <SpaceBetween size="l">
           {renderHeader()}
-          {/*{renderContactInfo()}*/}
-          {transferNotification && (
-            <div style={{
-              backgroundColor: '#eef2ff',
-              color: '#4f46e5',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '16px',
-              border: '1px solid #4f46e5',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}>
-              {transferNotification}
-            </div>
-          )}
           <QueueMonitor availableQueues={availableQueues} />
           <Tabs
             tabs={[
               {
                 label: "外線発信",
                 id: "outbound",
-                //content: renderOutboundTab()
                 content: renderOutboundTab()
               },
               {
@@ -1701,11 +1463,6 @@ function App() {
                 content: (
                   <Suspense fallback={<div>{t('tab.history.loadingMessage')}</div>}>
                     <Container>
-                      {/*<Button
-                        onClick={() => window.open(config?.contactSearchUrl || '#', '_blank')}
-                      >
-                        通話履歴を開く
-                      </Button>*/}
                       <ContactHistory history={contactHistory} onRedial={handleRedial} />
                     </Container>
                   </Suspense>
