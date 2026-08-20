@@ -1,6 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 
-import { auth } from './auth/resource';
+//import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { fetchConnectUser } from "./functions/fetchConnectUser/resource";
 import { queueAlert } from "./functions/queueAlert/resource";
@@ -19,7 +19,7 @@ import { StartingPosition } from "aws-cdk-lib/aws-lambda";
 import { KinesisEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 
 const backend = defineBackend({
-  auth,
+  //auth,
   data,
   fetchConnectUser,
   queueAlert,
