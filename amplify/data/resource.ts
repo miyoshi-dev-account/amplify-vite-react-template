@@ -15,7 +15,8 @@ const schema = a.schema({
     .model({
       content: a.string(),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   /* UserList用データ定義追加 */
   UserList: a
@@ -45,7 +46,8 @@ const schema = a.schema({
       outboundQueueListId: a.string(),
       queueList: a.json()  // キューによるフィルター用の項目
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   /* メトリクスデータ定義 */
   QueueMetrics: a
@@ -55,7 +57,8 @@ const schema = a.schema({
       contactsInQueue: a.integer(),
       oldestContactAge: a.integer()
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   /* 転送時のコンタクト属性設定用API（Lambda）定義 */
   updateContactAttributes: a
@@ -73,7 +76,8 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(updateContactAttributes))
-    .authorization((allow) => [allow.publicApiKey()]), // Lambda関数を紐付け
+    //.authorization((allow) => [allow.publicApiKey()]), // Lambda関数を紐付け
+    .authorization((allow) => [allow.authenticated()]),
 
   /* 通話終了時のコンタクト情報参照用API（Lambda）定義 */
   getContactInfo: a
@@ -93,7 +97,8 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(getContactInfo))
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   searchQueues: a
     .query()
@@ -108,7 +113,8 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(searchQueues))
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 
   /* クイック接続一覧取得用API（Lambda）定義 */
   listAllQuickConnects: a
@@ -120,7 +126,8 @@ const schema = a.schema({
       })
     )
     .handler(a.handler.function(listAllQuickConnects))
-    .authorization((allow) => [allow.publicApiKey()]),
+    //.authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -128,11 +135,14 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
+    defaultAuthorizationMode: "userPool",
+    /*
     defaultAuthorizationMode: "apiKey",
     // API Key is used for a.allow.public() rules
     apiKeyAuthorizationMode: {
       expiresInDays: 30,
     },
+    */
   },
 });
 
