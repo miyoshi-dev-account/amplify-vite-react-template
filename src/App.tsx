@@ -12,7 +12,7 @@ import type { Schema } from '../amplify/data/resource';
 import { generateClient } from 'aws-amplify/data';
 import ContactHistory, { ContactRecord } from './ContactHistory';
 
-// ソースコード変更によるデプロイテスト2
+// ソースコード変更によるデプロイテスト3
 
 // Cloudscapeコンポーネントを遅延ロード
 const Container = React.lazy(() => import("@cloudscape-design/components/container"));
