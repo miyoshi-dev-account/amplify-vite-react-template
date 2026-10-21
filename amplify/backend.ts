@@ -201,6 +201,7 @@ new wafv2.CfnWebACLAssociation(wafStack, 'AppSyncWebAclAssociation', {
 
 
 // --- 検証用: 同一アカウント内のS3 + CloudFrontによるフロントエンド配信 ---
+// ※開発環境のため、カスタムSSL証明書・AWS WAFは設定しない（CloudFrontデフォルト証明書を使用）
 
 const hostingStack = backend.createStack('HostingStack');
 
@@ -212,6 +213,20 @@ const hostingBucket = new s3.Bucket(hostingStack, 'HostingBucket', {
   // 検証環境のため、スタック削除時にオブジェクトごと削除する
   removalPolicy: cdk.RemovalPolicy.DESTROY,
   autoDeleteObjects: true,
+});
+
+// キャッシュポリシー（CloudFrontでのキャッシュ時間: 10分）
+const hostingCachePolicy = new cloudfront.CachePolicy(hostingStack, 'HostingCachePolicy', {
+  comment: 'Amplify app frontend cache policy (10 minutes)',
+  defaultTtl: cdk.Duration.minutes(10),
+  minTtl: cdk.Duration.seconds(0),
+  maxTtl: cdk.Duration.minutes(10),
+  cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+  headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+  queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+  // オブジェクトの自動圧縮を有効にするため、gzip/brotli をキャッシュキーに含める
+  enableAcceptEncodingGzip: true,
+  enableAcceptEncodingBrotli: true,
 });
 
 // レスポンスヘッダーポリシー
@@ -235,12 +250,19 @@ const hostingResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(hostin
 const hostingDistribution = new cloudfront.Distribution(hostingStack, 'HostingDistribution', {
   comment: 'Amplify app frontend (verification)',
   defaultRootObject: 'index.html',
-  priceClass: cloudfront.PriceClass.PRICE_CLASS_200, // 日本を含むエッジロケーション
+  priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL, // すべてのエッジロケーションを使用
+  enableIpv6: true,
   defaultBehavior: {
+    // オリジンシールドは指定しない（無効）
     origin: origins.S3BucketOrigin.withOriginAccessControl(hostingBucket),
-    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-    cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+    allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+    cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
+    compress: true,
+    cachePolicy: hostingCachePolicy,
+    originRequestPolicy: cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN,
     responseHeadersPolicy: hostingResponseHeadersPolicy,
+    // ビューワーのアクセス制限（trustedKeyGroups）は指定しない（無効）
   },
 });
 
@@ -254,4 +276,3 @@ backend.addOutput({
     },
   },
 });
-
