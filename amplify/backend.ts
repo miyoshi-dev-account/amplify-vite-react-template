@@ -19,6 +19,10 @@ import { StartingPosition } from "aws-cdk-lib/aws-lambda";
 import { KinesisEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+
 const backend = defineBackend({
   auth,
   data,
@@ -193,3 +197,61 @@ new wafv2.CfnWebACLAssociation(wafStack, 'AppSyncWebAclAssociation', {
   resourceArn: backend.data.resources.cfnResources.cfnGraphqlApi.attrArn,
   webAclArn: appsyncWebAcl.attrArn,
 });
+
+
+
+// --- 検証用: 同一アカウント内のS3 + CloudFrontによるフロントエンド配信 ---
+
+const hostingStack = backend.createStack('HostingStack');
+
+// 配信用S3バケット（パブリックアクセス不可、CloudFront(OAC)経由でのみ参照）
+const hostingBucket = new s3.Bucket(hostingStack, 'HostingBucket', {
+  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+  encryption: s3.BucketEncryption.S3_MANAGED,
+  enforceSSL: true,
+  // 検証環境のため、スタック削除時にオブジェクトごと削除する
+  removalPolicy: cdk.RemovalPolicy.DESTROY,
+  autoDeleteObjects: true,
+});
+
+// レスポンスヘッダーポリシー
+// ※Amazon Connect Agent Workspace に iframe で埋め込むため、frameOptions(X-Frame-Options) は設定しない
+const hostingResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(hostingStack, 'HostingResponseHeadersPolicy', {
+  securityHeadersBehavior: {
+    strictTransportSecurity: {
+      accessControlMaxAge: cdk.Duration.days(365),
+      includeSubdomains: true,
+      override: true,
+    },
+    contentTypeOptions: { override: true },
+    referrerPolicy: {
+      referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+      override: true,
+    },
+  },
+});
+
+// CloudFrontディストリビューション
+const hostingDistribution = new cloudfront.Distribution(hostingStack, 'HostingDistribution', {
+  comment: 'Amplify app frontend (verification)',
+  defaultRootObject: 'index.html',
+  priceClass: cloudfront.PriceClass.PRICE_CLASS_200, // 日本を含むエッジロケーション
+  defaultBehavior: {
+    origin: origins.S3BucketOrigin.withOriginAccessControl(hostingBucket),
+    viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+    responseHeadersPolicy: hostingResponseHeadersPolicy,
+  },
+});
+
+// postBuild でのデプロイに使用する値を amplify_outputs.json に出力
+backend.addOutput({
+  custom: {
+    hosting: {
+      bucketName: hostingBucket.bucketName,
+      distributionId: hostingDistribution.distributionId,
+      distributionDomainName: hostingDistribution.distributionDomainName,
+    },
+  },
+});
+

@@ -10,6 +10,9 @@ frontend:
     build:
       commands:
         - npm run build
+    postBuild:
+      commands:
+        - BUCKET_NAME=$(node -p "require('./amplify_outputs.json').custom.hosting.bucketName") && DISTRIBUTION_ID=$(node -p "require('./amplify_outputs.json').custom.hosting.distributionId") && echo "Deploy to s3://${BUCKET_NAME} (CloudFront ${DISTRIBUTION_ID})" && aws s3 sync dist/ "s3://${BUCKET_NAME}" --delete && aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/*"
   artifacts:
     baseDirectory: dist
     files:
