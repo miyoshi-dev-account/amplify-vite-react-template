@@ -8,6 +8,7 @@ import { updateContactAttributes } from './functions/updateContactAttributes/res
 import { getContactInfo } from './functions/getContactInfo/resource';
 import { searchQueues } from './functions/searchQueues/resource';
 import { listAllQuickConnects } from './functions/listAllQuickConnects/resource';
+import { originAuthorizer } from './functions/originAuthorizer/resource';
 
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -22,10 +23,12 @@ import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 const backend = defineBackend({
   auth,
   data,
+  originAuthorizer,
   fetchConnectUser,
   queueAlert,
   updateContactAttributes,
@@ -246,6 +249,79 @@ const hostingResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(hostin
   },
 });
 
+// --- 案5検証用: AppSync を CloudFront 経由のアクセスに限定する ---
+
+// 秘密ヘッダーB（CloudFront → AppSync）の値
+// ※オーソライザーと同じスタックに作成する（HostingStack に作ると data との間で循環参照になるため）
+const originVerifySecret = new secretsmanager.Secret(
+  cdk.Stack.of(backend.originAuthorizer.resources.lambda),
+  'OriginVerifySecret',
+  {
+    description: 'CloudFront -> AppSync origin verify header value',
+    generateSecretString: { excludePunctuation: true, passwordLength: 40 },
+  }
+);
+originVerifySecret.grantRead(backend.originAuthorizer.resources.lambda);
+backend.originAuthorizer.addEnvironment('ORIGIN_VERIFY_SECRET_ARN', originVerifySecret.secretArn);
+
+// CloudFrontに埋め込む値（CloudFormationの動的参照として解決される）
+const originVerifyValue = originVerifySecret.secretValue.unsafeUnwrap();
+
+// AppSync のホスト名（https://xxx.appsync-api.../graphql → xxx.appsync-api...）
+const appsyncCfn = backend.data.resources.cfnResources.cfnGraphqlApi;
+const appsyncApiHost = cdk.Fn.select(2, cdk.Fn.split('/', appsyncCfn.attrGraphQlUrl));
+const appsyncRealtimeHost = cdk.Fn.select(2, cdk.Fn.split('/', appsyncCfn.attrRealtimeUrl));
+
+// AppSync をオリジンとして定義（秘密ヘッダーBを付与）
+const appsyncApiOrigin = new origins.HttpOrigin(appsyncApiHost, {
+  protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+  customHeaders: { 'x-origin-verify': originVerifyValue },
+});
+const appsyncRealtimeOrigin = new origins.HttpOrigin(appsyncRealtimeHost, {
+  protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+  customHeaders: { 'x-origin-verify': originVerifyValue },
+});
+
+// リアルタイム接続のハンドシェイクを AppSync 向けに書き換える CloudFront Function
+//  - パス: /graphql/realtime → /graphql
+//  - Sec-WebSocket-Protocol の header-<base64url> 内の host を AppSync のホスト名に置換し、秘密ヘッダーBを追加
+const appsyncRealtimeFunction = new cloudfront.Function(hostingStack, 'AppSyncRealtimeHandshakeFunction', {
+  runtime: cloudfront.FunctionRuntime.JS_2_0,
+  code: cloudfront.FunctionCode.fromInline(`
+var APPSYNC_HOST = '${appsyncApiHost}';
+var ORIGIN_VERIFY = '${originVerifyValue}';
+
+function b64urlDecode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) { s += '='; }
+  return Buffer.from(s, 'base64').toString('utf8');
+}
+
+function b64urlEncode(s) {
+  return Buffer.from(s, 'utf8').toString('base64')
+    .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+}
+
+async function handler(event) {
+  var request = event.request;
+  request.uri = '/graphql';
+
+  var protocolHeader = request.headers['sec-websocket-protocol'];
+  if (protocolHeader) {
+    protocolHeader.value = protocolHeader.value.split(',').map(function (p) {
+      p = p.trim();
+      if (p.indexOf('header-') !== 0) { return p; }
+      var authHeader = JSON.parse(b64urlDecode(p.substring(7)));
+      authHeader.host = APPSYNC_HOST;
+      authHeader['x-origin-verify'] = ORIGIN_VERIFY;
+      return 'header-' + b64urlEncode(JSON.stringify(authHeader));
+    }).join(', ');
+  }
+  return request;
+}
+`),
+});
+
 // CloudFrontディストリビューション
 const hostingDistribution = new cloudfront.Distribution(hostingStack, 'HostingDistribution', {
   comment: 'Amplify app frontend (verification)',
@@ -263,6 +339,28 @@ const hostingDistribution = new cloudfront.Distribution(hostingStack, 'HostingDi
     originRequestPolicy: cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN,
     responseHeadersPolicy: hostingResponseHeadersPolicy,
     // ビューワーのアクセス制限（trustedKeyGroups）は指定しない（無効）
+  },
+  additionalBehaviors: {
+    // リアルタイム通信（WebSocket）。'/graphql' より先に定義する
+    '/graphql/realtime': {
+      origin: appsyncRealtimeOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      functionAssociations: [{
+        function: appsyncRealtimeFunction,
+        eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+      }],
+    },
+    // クエリ／ミューテーション（HTTP）
+    '/graphql': {
+      origin: appsyncApiOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+    },
   },
 });
 

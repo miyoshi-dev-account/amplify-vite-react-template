@@ -3,6 +3,7 @@ import { updateContactAttributes } from '../functions/updateContactAttributes/re
 import { getContactInfo } from '../functions/getContactInfo/resource';
 import { searchQueues } from '../functions/searchQueues/resource';
 import { listAllQuickConnects } from '../functions/listAllQuickConnects/resource';
+import { originAuthorizer } from '../functions/originAuthorizer/resource';
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -16,7 +17,8 @@ const schema = a.schema({
       content: a.string(),
     })
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   /* UserList用データ定義追加 */
   UserList: a
@@ -47,7 +49,8 @@ const schema = a.schema({
       queueList: a.json()  // キューによるフィルター用の項目
     })
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   /* メトリクスデータ定義 */
   QueueMetrics: a
@@ -58,7 +61,8 @@ const schema = a.schema({
       oldestContactAge: a.integer()
     })
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   /* 転送時のコンタクト属性設定用API（Lambda）定義 */
   updateContactAttributes: a
@@ -77,7 +81,8 @@ const schema = a.schema({
     )
     .handler(a.handler.function(updateContactAttributes))
     //.authorization((allow) => [allow.publicApiKey()]), // Lambda関数を紐付け
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   /* 通話終了時のコンタクト情報参照用API（Lambda）定義 */
   getContactInfo: a
@@ -98,7 +103,8 @@ const schema = a.schema({
     )
     .handler(a.handler.function(getContactInfo))
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   searchQueues: a
     .query()
@@ -114,7 +120,8 @@ const schema = a.schema({
     )
     .handler(a.handler.function(searchQueues))
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 
   /* クイック接続一覧取得用API（Lambda）定義 */
   listAllQuickConnects: a
@@ -127,7 +134,8 @@ const schema = a.schema({
     )
     .handler(a.handler.function(listAllQuickConnects))
     //.authorization((allow) => [allow.publicApiKey()]),
-    .authorization((allow) => [allow.authenticated()]),
+    //.authorization((allow) => [allow.authenticated()]),
+    .authorization((allow) => [allow.custom()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -135,7 +143,13 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "userPool",
+    defaultAuthorizationMode: "lambda",
+    // CloudFront経由のリクエストのみ許可するLambdaオーソライザー
+    lambdaAuthorizationMode: {
+      function: originAuthorizer,
+      timeToLiveInSeconds: 0, // 判定結果をキャッシュしない
+    },
+    //defaultAuthorizationMode: "userPool",
     /*
     defaultAuthorizationMode: "apiKey",
     // API Key is used for a.allow.public() rules

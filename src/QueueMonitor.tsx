@@ -4,7 +4,8 @@ import type { Schema } from '../amplify/data/resource';
 import { Button, SpaceBetween } from '@cloudscape-design/components';
 
 // Amplify Data クライアントの初期化
-const client = generateClient<Schema>();
+// 許可/拒否はオーソライザーが秘密ヘッダーで判定するため、トークンは固定のダミー値でよい
+const client = generateClient<Schema>({ authMode: 'lambda', authToken: 'cloudfront-origin' });
 
 interface QueueData {
     queueARN: string;

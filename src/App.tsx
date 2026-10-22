@@ -60,7 +60,8 @@ const agentClient = new AgentClient();
 const contactClient = new ContactClient();
 
 // クイック接続一覧用
-const client = generateClient<Schema>();
+// 許可/拒否はオーソライザーが秘密ヘッダーで判定するため、トークンは固定のダミー値でよい
+const client = generateClient<Schema>({ authMode: 'lambda', authToken: 'cloudfront-origin' });
 
 /** 型定義の開始 **/
 // config.jsonの設定値
