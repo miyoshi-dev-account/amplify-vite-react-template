@@ -9,7 +9,6 @@ import { getContactInfo } from './functions/getContactInfo/resource';
 import { searchQueues } from './functions/searchQueues/resource';
 import { listAllQuickConnects } from './functions/listAllQuickConnects/resource';
 import { originAuthorizer } from './functions/originAuthorizer/resource';
-import { namingTest } from './functions/namingTest/resource';
 
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -36,7 +35,6 @@ const backend = defineBackend({
   getContactInfo,
   searchQueues,
   listAllQuickConnects,
-  namingTest,
 });
 
 // --- ユーザーリスト取得用のLambda関数(fetchConnectUser)の定義 ---
@@ -375,68 +373,4 @@ backend.addOutput({
       distributionDomainName: hostingDistribution.distributionDomainName,
     },
   },
-});
-
-
-
-// --- 命名指定の検証用Lambda(namingTest) ---
-// 本番で使う「関数名・実行ロール名・実行ポリシー名の上書き」が、Amplifyのビルドで動作するかを確認するための一時的なリソース。
-// 検証後は、このブロックと amplify/functions/namingTest を削除する。
-
-// 既定のポリシー(DefaultPolicy)を作成させるため、読み取り専用の権限を追加する
-backend.namingTest.resources.lambda.addToRolePolicy(
-  new iam.PolicyStatement({
-    actions: ['connect:ListQueues'],
-    resources: ['*'],
-  })
-);
-
-// fetchConnectUser と同じ経路(grant)で、既定のポリシーに権限が追加される場合の動作も確認する
-backend.data.resources.graphqlApi.grant(
-  backend.namingTest.resources.lambda,
-  cdk.aws_appsync.IamResource.all(),
-  "appsync:GraphQL"
-);
-
-const lambdaNaming = [
-  {
-    fn: backend.namingTest,
-    name: 'si2-lambda-namingTest-dev',
-    role: 'si2-iam-sjp-servicedeskbcp-bp-namingTest-sdcti-role-01',
-    policy: 'si2-iam-sjp-servicedeskbcp-bp-namingTest-sdcti-policy-01',
-  },
-];
-
-// ※すべての権限追加(addToRolePolicy / grant / イベントソース追加)の後に実行すること
-for (const { fn, name, role, policy } of lambdaNaming) {
-  fn.resources.cfnResources.cfnFunction.functionName = name;
-
-  const lambdaRole = fn.resources.lambda.role as iam.Role;
-  (lambdaRole.node.defaultChild as iam.CfnRole).roleName = role;
-
-  const defaultPolicy = lambdaRole.node.tryFindChild('DefaultPolicy') as iam.Policy | undefined;
-  if (!defaultPolicy) {
-    throw new Error(`DefaultPolicy not found for ${name}`);
-  }
-  (defaultPolicy.node.defaultChild as iam.CfnPolicy).policyName = policy;
-}
-
-
-
-// --- 命名指定の検証用: Kinesisストリーム・EventBridgeルール(namingTest) ---
-// 本番で使う streamName / ruleName の指定が、Amplifyのビルドで動作するかを確認するための一時的なリソース。
-// 検証後は、このブロックを削除する(Kinesisのシャードは時間課金のため、早めに削除すること)。
-
-// 検証用Kinesisストリーム(シャード1。どのLambdaにも接続しない)
-new Stream(kinesisStack, 'NamingTestStream', {
-  streamName: 'si2-kinesis-namingTest-tokyo-dev',
-  shardCount: 1,
-});
-
-// 検証用EventBridgeルール(無効状態、ターゲットなし。実行されない)
-new events.Rule(eventStack, 'NamingTestRule', {
-  ruleName: 'si2-eventbridge-rule-namingTest-dev',
-  description: '命名指定の検証用(無効状態)',
-  schedule: events.Schedule.rate(cdk.Duration.days(1)),
-  enabled: false,
 });
