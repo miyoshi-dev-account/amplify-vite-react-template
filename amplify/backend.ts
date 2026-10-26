@@ -420,3 +420,23 @@ for (const { fn, name, role, policy } of lambdaNaming) {
   }
   (defaultPolicy.node.defaultChild as iam.CfnPolicy).policyName = policy;
 }
+
+
+
+// --- 命名指定の検証用: Kinesisストリーム・EventBridgeルール(namingTest) ---
+// 本番で使う streamName / ruleName の指定が、Amplifyのビルドで動作するかを確認するための一時的なリソース。
+// 検証後は、このブロックを削除する(Kinesisのシャードは時間課金のため、早めに削除すること)。
+
+// 検証用Kinesisストリーム(シャード1。どのLambdaにも接続しない)
+new Stream(kinesisStack, 'NamingTestStream', {
+  streamName: 'si2-kinesis-namingTest-tokyo-dev',
+  shardCount: 1,
+});
+
+// 検証用EventBridgeルール(無効状態、ターゲットなし。実行されない)
+new events.Rule(eventStack, 'NamingTestRule', {
+  ruleName: 'si2-eventbridge-rule-namingTest-dev',
+  description: '命名指定の検証用(無効状態)',
+  schedule: events.Schedule.rate(cdk.Duration.days(1)),
+  enabled: false,
+});
