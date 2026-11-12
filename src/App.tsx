@@ -119,6 +119,8 @@ function App() {
   const [phoneNumberWithoutCode, setPhoneNumberWithoutCode] = useState('');
   const [contactAttributes, setContactAttributes] = useState<Record<string, any>>({});
   const [hasActiveContact, setHasActiveContact] = useState(false);
+  // 着信中・通話中の相手の電話番号（画面上部に表示する）
+  const [callBanner, setCallBanner] = useState<{ contactId: string; phoneNumber: string; status: '着信中' | '通話中' } | null>(null);
 
   // クイック接続一覧用
   const [quickConnects, setQuickConnects] = useState<any[]>([]);
@@ -700,6 +702,9 @@ function App() {
       // ステータスを一律「通話中」に設定
       setOutboundStatus('通話中');
 
+      // 着信表示を「通話中」に切り替える
+      setCallBanner((prev) => (prev && prev.contactId === contactId ? { ...prev, status: '通話中' } : prev));
+
       // コンタクト情報を取得
       await fetchContactData(contactId);
       await fetchAgentData();
@@ -720,11 +725,15 @@ function App() {
       setContactAttributes({});
       setHasActiveContact(false);
       setOutboundStatus('');
+      setCallBanner(null);
     };
 
     const onStartingAcwHandler = async (data: { contactId: any; }) => {
       console.log('[onStartingAcw] Starting ACW event fired, data:', data);
       const contactId = data?.contactId;
+
+      // 通話が終了したため、着信・通話中の表示を消す
+      setCallBanner(null);
 
       if (contactId) {
         await fetchContactData(contactId);
@@ -734,11 +743,42 @@ function App() {
       setOutboundStatus('アフターコールワークを終了してください');
     };
 
+    // 着信（呼び出し中）時に相手の電話番号を取得して表示する
+    const onConnectingBannerHandler = async (data: { contactId: string }) => {
+      const contactId = data?.contactId;
+      if (!contactId || !voiceClientInstance) return;
+      try {
+        // 音声の着信のみ対象とする（発信・チャットは表示しない）
+        const channelType = await contactClient.getChannelType(contactId);
+        const type = typeof channelType === 'string' ? channelType : (channelType as any)?.type;
+        if (type !== 'voice') return;
+
+        // 参加者に inbound がいる場合のみ着信と判定する（通話履歴の判定と同じ方法）
+        const participants = await contactClient.listParticipants(contactId);
+        const isInbound = participants.some((p: any) => p.type?.value === 'inbound');
+        if (!isInbound) return;
+
+        const phoneNumber = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
+        setCallBanner({ contactId, phoneNumber: phoneNumber || '不明', status: '着信中' });
+      } catch (error) {
+        console.error('[onConnecting] 着信番号の取得に失敗しました:', error);
+      }
+    };
+
+    // 不在（応答しなかった）の場合は表示を消す
+    const onMissedBannerHandler = async () => {
+      setCallBanner(null);
+    };
+
     contactClient.onConnected(onConnectedHandler);
     contactClient.onStartingAcw(onStartingAcwHandler);
     contactClient.onDestroyed(onDestroyedHandler);
+    contactClient.onConnecting(onConnectingBannerHandler);
+    contactClient.onMissed(onMissedBannerHandler);
 
     return () => {
+      contactClient.offConnecting(onConnectingBannerHandler);
+      contactClient.offMissed(onMissedBannerHandler);
       if (agentSubscription?.unsubscribe) {
         agentSubscription.unsubscribe();
       }
@@ -1452,6 +1492,20 @@ function App() {
       <div className="app">
         <SpaceBetween size="l">
           {renderHeader()}
+          {/* 着信中・通話中の相手の電話番号（国内形式で表示） */}
+          {callBanner && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '5px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              backgroundColor: callBanner.status === '着信中' ? '#fff7ed' : '#eff6ff',
+              border: `1px solid ${callBanner.status === '着信中' ? '#ea580c' : '#2563eb'}`,
+              color: callBanner.status === '着信中' ? '#9a3412' : '#1e40af',
+            }}>
+              📞 {callBanner.status}：{formatDisplayPhoneNumber(callBanner.phoneNumber)}
+            </div>
+          )}
           <QueueMonitor availableQueues={availableQueues} />
           <Tabs
             tabs={[
