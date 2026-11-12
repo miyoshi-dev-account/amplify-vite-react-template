@@ -1492,9 +1492,9 @@ function App() {
                             fontSize: '12px',
                             padding: '4px 8px',
                             borderRadius: '12px',
-                            // 状態によって背景色と文字色を変える（例：Availableなら緑、それ以外はグレー）
-                            backgroundColor: agentData.status === 'Available' ? '#d1fae5' : '#e5e7eb',
-                            color: agentData.status === 'Available' ? '#065f46' : '#374151',
+                            // 状態によって背景色と文字色を変える（Availableなら緑、通話中なら黄色、それ以外はグレー）
+                            backgroundColor: agentData.status === 'Available' ? '#d1fae5' : agentData.status === '通話中' ? '#fef3c7' : '#e5e7eb',
+                            color: agentData.status === 'Available' ? '#065f46' : agentData.status === '通話中' ? '#92400e' : '#374151',
                             fontWeight: 'bold'
                           }}>
                             {agentData.status}

@@ -179,6 +179,18 @@ async function getRecordDataAsync(
     return data;
 }
 
+// 通話中・保留中の音声コンタクトがあれば「通話中」、無ければエージェントステータス名を返す
+// （Amazon Connect のエージェントステータスは通話中も変わらないため、コンタクトの状態から判定する）
+const ON_CALL_STATES = ["CONNECTED", "CONNECTED_ONHOLD"];
+
+function resolveDisplayStatus(agentSnapshot: any): string {
+    const contacts: any[] = Array.isArray(agentSnapshot?.Contacts) ? agentSnapshot.Contacts : [];
+    const isOnCall = contacts.some(
+        (contact) => contact?.Channel === "VOICE" && ON_CALL_STATES.includes(contact?.State)
+    );
+    return isOnCall ? "通話中" : String(agentSnapshot?.AgentStatus?.Name);
+}
+
 //export const handler = async (event: any) => {
 export const handler: KinesisStreamHandler = async (
     event,
@@ -194,7 +206,8 @@ export const handler: KinesisStreamHandler = async (
             const recordJson = JSON.parse(recordData);
             if (recordJson.EventType !== "STATE_CHANGE") {
                 logger.info(`Not status change event.`);
-                return { batchItemFailures: [] };
+                // 後続のレコードも処理するため、このレコードだけ読み飛ばす
+                continue;
             }
 
             // AppSyncのエンドポイント設定
@@ -245,7 +258,7 @@ export const handler: KinesisStreamHandler = async (
                         phoneType: "-",
                         deviceId: "-",
                         inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
-                        status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
+                        status: resolveDisplayStatus(recordJson.CurrentAgentSnapshot),
                         statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
                         correspondingQueue: "-",
                         outboundQueueListId: "-",
@@ -288,7 +301,7 @@ export const handler: KinesisStreamHandler = async (
                         phoneType: "-",
                         deviceId: "-",
                         inQueueAlert: JSON.stringify(recordJson.CurrentAgentSnapshot.Configuration.RoutingProfile.InboundQueues),
-                        status: String(recordJson.CurrentAgentSnapshot.AgentStatus.Name),
+                        status: resolveDisplayStatus(recordJson.CurrentAgentSnapshot),
                         statusStartTimestamp: String(recordJson.CurrentAgentSnapshot.AgentStatus.StartTimestamp),
                         correspondingQueue: "-",
                         outboundQueueListId: "-",
