@@ -352,6 +352,54 @@ function App() {
     }
   }
 
+  // 着信中・通話中の相手の電話番号を取得して表示する
+  // status を省略した場合は、エージェント自身の参加状態から「着信中」「通話中」を判定する
+  const showCallBanner = async (contactId: string, source: string, status?: '着信中' | '通話中') => {
+    if (!contactId || !voiceClientInstance) {
+      console.log(`[callBanner] ${source}: コンタクトID または VoiceClient がないため表示しません`);
+      return;
+    }
+    try {
+      // 音声のみ対象とする（チャット・タスクは表示しない）
+      const channelType = await contactClient.getChannelType(contactId);
+      const obj = channelType as unknown as Record<string, any>;
+      const type = typeof channelType === 'string' ? channelType : (obj?.type || obj?.name || obj?.value);
+      if (type !== 'voice') {
+        console.log(`[callBanner] ${source}: 音声以外のため表示しません (type: ${type})`);
+        return;
+      }
+
+      // 参加者に inbound がいる場合のみ着信と判定する（通話履歴の判定と同じ方法）
+      const participants = await contactClient.listParticipants(contactId);
+      const isInbound = participants.some((p: any) => p.type?.value === 'inbound');
+      if (!isInbound) {
+        console.log(`[callBanner] ${source}: 着信ではないため表示しません`);
+        return;
+      }
+
+      // 表示する状態を判定する（エージェント自身が「接続中」なら着信中、それ以外は通話中）
+      let bannerStatus = status;
+      if (!bannerStatus) {
+        bannerStatus = '着信中';
+        const self = participants.find((p: any) => p.isSelf);
+        if (self) {
+          try {
+            const selfState = await contactClient.getParticipantState(self.participantId);
+            bannerStatus = selfState.value === 'connecting' ? '着信中' : '通話中';
+          } catch (stateError) {
+            console.warn(`[callBanner] ${source}: 参加状態の取得に失敗したため「着信中」と表示します`, stateError);
+          }
+        }
+      }
+
+      const phoneNumber = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
+      console.log(`[callBanner] ${source}: ${bannerStatus} ${phoneNumber}`);
+      setCallBanner({ contactId, phoneNumber: phoneNumber || '不明', status: bannerStatus });
+    } catch (error) {
+      console.error(`[callBanner] ${source}: 着信番号の取得に失敗しました:`, error);
+    }
+  };
+
   // 追加: initializeAppState関数の定義
   initializeAppState = async () => {
     try {
@@ -370,6 +418,19 @@ function App() {
         await fetchContactAttributes(initialContactId);
 
         setHasActiveContact(true);
+
+        // 着信時はアプリが開き直り、着信・応答のイベントを受け取れないため、起動時に着信番号を表示する
+        // ※転送された通話では InitialContactId が元のコンタクトを指すため、現在のコンタクトIDを優先して使う
+        if (status.name !== 'AfterCallWork') {
+          let currentContactId = initialContactId;
+          try {
+            const currentContact = await contactClient.getContact(AppContactScope.CurrentContactId);
+            currentContactId = currentContact?.contactId || initialContactId;
+          } catch (contactError) {
+            console.warn('[initializeAppState] 現在のコンタクトIDの取得に失敗したため、InitialContactId を使用します', contactError);
+          }
+          await showCallBanner(currentContactId, 'initializeAppState');
+        }
 
         // ステータスに応じてメッセージを変更するが、コンタクト情報は維持
         if (status.name === 'AfterCallWork') {
@@ -740,56 +801,15 @@ function App() {
       setOutboundStatus('アフターコールワークを終了してください');
     };
 
-    // 着信時・応答時に相手の電話番号を取得して表示する
-    // ※どのイベントで呼ばれたか、どこで処理を打ち切ったかを確認できるよう、各段階でログを出力する
-    const showCallBanner = async (
-      data: { contactId: string; type?: string },
-      source: string,
-      status: '着信中' | '通話中'
-    ) => {
-      console.log(`[callBanner] ${source} イベント受信:`, data);
-      const contactId = data?.contactId;
-      if (!contactId) {
-        console.log(`[callBanner] ${source}: contactId がないため表示しません`);
-        return;
-      }
-      if (!voiceClientInstance) {
-        console.log(`[callBanner] ${source}: VoiceClient が未初期化のため表示しません`);
-        return;
-      }
-      try {
-        // 音声のみ対象とする（チャット・タスクは表示しない）
-        const channelType = data.type ?? await contactClient.getChannelType(contactId);
-        const obj = channelType as unknown as Record<string, any>;
-        const type = typeof channelType === 'string' ? channelType : (obj?.type || obj?.name || obj?.value);
-        if (type !== 'voice') {
-          console.log(`[callBanner] ${source}: 音声以外のため表示しません (type: ${type})`);
-          return;
-        }
-
-        // 参加者に inbound がいる場合のみ着信と判定する（通話履歴の判定と同じ方法）
-        const participants = await contactClient.listParticipants(contactId);
-        console.log(`[callBanner] ${source}: 参加者一覧`, participants);
-        const isInbound = participants.some((p: any) => p.type?.value === 'inbound');
-        if (!isInbound) {
-          console.log(`[callBanner] ${source}: 着信ではないため表示しません`);
-          return;
-        }
-
-        const phoneNumber = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
-        console.log(`[callBanner] ${source}: 取得した電話番号 ${phoneNumber}`);
-        setCallBanner({ contactId, phoneNumber: phoneNumber || '不明', status });
-      } catch (error) {
-        console.error(`[callBanner] ${source}: 着信番号の取得に失敗しました:`, error);
-      }
+    // 呼び出し中・応答時のイベント
+    // ※着信時はアプリが開き直るため、通常は起動時の処理（initializeAppState）で表示される。
+    //   アプリが開き直らない場合に備えてイベントでも表示する
+    const onConnectingBannerHandler = async (data: { contactId: string }) => {
+      if (data?.contactId) await showCallBanner(data.contactId, 'onConnecting', '着信中');
     };
-
-    // 呼び出し中を示すイベント（どれが発生するかを確認するため、3種類とも登録する）
-    const onConnectingBannerHandler = async (data: any) => showCallBanner(data, 'onConnecting', '着信中');
-    const onIncomingBannerHandler = async (data: any) => showCallBanner(data, 'onIncoming', '着信中');
-    const onPendingBannerHandler = async (data: any) => showCallBanner(data, 'onPending', '着信中');
-    // 応答時（呼び出し中に表示できなかった場合でも、通話中に表示する）
-    const onConnectedBannerHandler = async (data: any) => showCallBanner(data, 'onConnected', '通話中');
+    const onConnectedBannerHandler = async (data: { contactId: string }) => {
+      if (data?.contactId) await showCallBanner(data.contactId, 'onConnected', '通話中');
+    };
 
     // 不在（応答しなかった）の場合は表示を消す
     const onMissedBannerHandler = async () => {
@@ -800,15 +820,11 @@ function App() {
     contactClient.onStartingAcw(onStartingAcwHandler);
     contactClient.onDestroyed(onDestroyedHandler);
     contactClient.onConnecting(onConnectingBannerHandler);
-    contactClient.onIncoming(onIncomingBannerHandler);
-    contactClient.onPending(onPendingBannerHandler);
     contactClient.onConnected(onConnectedBannerHandler);
     contactClient.onMissed(onMissedBannerHandler);
 
     return () => {
       contactClient.offConnecting(onConnectingBannerHandler);
-      contactClient.offIncoming(onIncomingBannerHandler);
-      contactClient.offPending(onPendingBannerHandler);
       contactClient.offConnected(onConnectedBannerHandler);
       contactClient.offMissed(onMissedBannerHandler);
       if (agentSubscription?.unsubscribe) {
