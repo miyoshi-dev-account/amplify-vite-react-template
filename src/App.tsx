@@ -702,9 +702,6 @@ function App() {
       // ステータスを一律「通話中」に設定
       setOutboundStatus('通話中');
 
-      // 着信表示を「通話中」に切り替える
-      setCallBanner((prev) => (prev && prev.contactId === contactId ? { ...prev, status: '通話中' } : prev));
-
       // コンタクト情報を取得
       await fetchContactData(contactId);
       await fetchAgentData();
@@ -743,27 +740,56 @@ function App() {
       setOutboundStatus('アフターコールワークを終了してください');
     };
 
-    // 着信（呼び出し中）時に相手の電話番号を取得して表示する
-    const onConnectingBannerHandler = async (data: { contactId: string }) => {
+    // 着信時・応答時に相手の電話番号を取得して表示する
+    // ※どのイベントで呼ばれたか、どこで処理を打ち切ったかを確認できるよう、各段階でログを出力する
+    const showCallBanner = async (
+      data: { contactId: string; type?: string },
+      source: string,
+      status: '着信中' | '通話中'
+    ) => {
+      console.log(`[callBanner] ${source} イベント受信:`, data);
       const contactId = data?.contactId;
-      if (!contactId || !voiceClientInstance) return;
+      if (!contactId) {
+        console.log(`[callBanner] ${source}: contactId がないため表示しません`);
+        return;
+      }
+      if (!voiceClientInstance) {
+        console.log(`[callBanner] ${source}: VoiceClient が未初期化のため表示しません`);
+        return;
+      }
       try {
-        // 音声の着信のみ対象とする（発信・チャットは表示しない）
-        const channelType = await contactClient.getChannelType(contactId);
-        const type = typeof channelType === 'string' ? channelType : (channelType as any)?.type;
-        if (type !== 'voice') return;
+        // 音声のみ対象とする（チャット・タスクは表示しない）
+        const channelType = data.type ?? await contactClient.getChannelType(contactId);
+        const obj = channelType as unknown as Record<string, any>;
+        const type = typeof channelType === 'string' ? channelType : (obj?.type || obj?.name || obj?.value);
+        if (type !== 'voice') {
+          console.log(`[callBanner] ${source}: 音声以外のため表示しません (type: ${type})`);
+          return;
+        }
 
         // 参加者に inbound がいる場合のみ着信と判定する（通話履歴の判定と同じ方法）
         const participants = await contactClient.listParticipants(contactId);
+        console.log(`[callBanner] ${source}: 参加者一覧`, participants);
         const isInbound = participants.some((p: any) => p.type?.value === 'inbound');
-        if (!isInbound) return;
+        if (!isInbound) {
+          console.log(`[callBanner] ${source}: 着信ではないため表示しません`);
+          return;
+        }
 
         const phoneNumber = await voiceClientInstance.getInitialCustomerPhoneNumber(contactId);
-        setCallBanner({ contactId, phoneNumber: phoneNumber || '不明', status: '着信中' });
+        console.log(`[callBanner] ${source}: 取得した電話番号 ${phoneNumber}`);
+        setCallBanner({ contactId, phoneNumber: phoneNumber || '不明', status });
       } catch (error) {
-        console.error('[onConnecting] 着信番号の取得に失敗しました:', error);
+        console.error(`[callBanner] ${source}: 着信番号の取得に失敗しました:`, error);
       }
     };
+
+    // 呼び出し中を示すイベント（どれが発生するかを確認するため、3種類とも登録する）
+    const onConnectingBannerHandler = async (data: any) => showCallBanner(data, 'onConnecting', '着信中');
+    const onIncomingBannerHandler = async (data: any) => showCallBanner(data, 'onIncoming', '着信中');
+    const onPendingBannerHandler = async (data: any) => showCallBanner(data, 'onPending', '着信中');
+    // 応答時（呼び出し中に表示できなかった場合でも、通話中に表示する）
+    const onConnectedBannerHandler = async (data: any) => showCallBanner(data, 'onConnected', '通話中');
 
     // 不在（応答しなかった）の場合は表示を消す
     const onMissedBannerHandler = async () => {
@@ -774,10 +800,16 @@ function App() {
     contactClient.onStartingAcw(onStartingAcwHandler);
     contactClient.onDestroyed(onDestroyedHandler);
     contactClient.onConnecting(onConnectingBannerHandler);
+    contactClient.onIncoming(onIncomingBannerHandler);
+    contactClient.onPending(onPendingBannerHandler);
+    contactClient.onConnected(onConnectedBannerHandler);
     contactClient.onMissed(onMissedBannerHandler);
 
     return () => {
       contactClient.offConnecting(onConnectingBannerHandler);
+      contactClient.offIncoming(onIncomingBannerHandler);
+      contactClient.offPending(onPendingBannerHandler);
+      contactClient.offConnected(onConnectedBannerHandler);
       contactClient.offMissed(onMissedBannerHandler);
       if (agentSubscription?.unsubscribe) {
         agentSubscription.unsubscribe();
