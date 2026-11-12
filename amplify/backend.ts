@@ -18,7 +18,6 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Stream } from "aws-cdk-lib/aws-kinesis";
 import { StartingPosition } from "aws-cdk-lib/aws-lambda";
 import { KinesisEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
@@ -160,46 +159,6 @@ backend.listAllQuickConnects.resources.lambda.addToRolePolicy(
     resources: ['*'],
   })
 );
-
-
-
-// --- WAF検証用: AppSync APIへのWebACL関連付け(AWSマネージドルールグループのみ、Countモード) ---
-// Akamai未接続のため、ヘッダー検証ルールは含めず、AWSマネージドルールグループの誤検知有無のみを検証する。
-
-const wafStack = backend.createStack('WafVerificationStack');
-
-const appsyncWebAcl = new wafv2.CfnWebACL(wafStack, 'AppSyncWebAcl', {
-  scope: 'REGIONAL',
-  defaultAction: { allow: {} },
-  visibilityConfig: {
-    sampledRequestsEnabled: true,
-    cloudWatchMetricsEnabled: true,
-    metricName: 'AppSyncWebAclDev',
-  },
-  rules: [
-    {
-      name: 'AWSManagedRulesCommonRuleSet',
-      priority: 0,
-      overrideAction: { count: {} }, // Countモード: マッチしても実際にはブロックしない
-      statement: {
-        managedRuleGroupStatement: {
-          vendorName: 'AWS',
-          name: 'AWSManagedRulesCommonRuleSet',
-        },
-      },
-      visibilityConfig: {
-        sampledRequestsEnabled: true,
-        cloudWatchMetricsEnabled: true,
-        metricName: 'CommonRuleSetDev',
-      },
-    },
-  ],
-});
-
-new wafv2.CfnWebACLAssociation(wafStack, 'AppSyncWebAclAssociation', {
-  resourceArn: backend.data.resources.cfnResources.cfnGraphqlApi.attrArn,
-  webAclArn: appsyncWebAcl.attrArn,
-});
 
 
 
