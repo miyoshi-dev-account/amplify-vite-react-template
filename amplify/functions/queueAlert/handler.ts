@@ -162,7 +162,11 @@ async function updateAmplifyData(metrics: any, queueId: string, queueName: strin
         const contactsInQueue = collections.find((m: any) => m.Metric?.Name === "CONTACTS_IN_QUEUE")?.Value || 0;
 
         // 3. OLDEST_CONTACT_AGE の値を取得する
-        const oldestContactAge = collections.find((m: any) => m.Metric?.Name === "OLDEST_CONTACT_AGE")?.Value || 0;
+        // キュー単位で集計（Groupings 指定）すると値が「秒」で返るため、
+        // 画面側の想定（ミリ秒）に合わせて1000倍する。
+        // oldestContactAge は Int 型のため、小数にならないよう整数に丸める
+        const oldestContactAgeSeconds = collections.find((m: any) => m.Metric?.Name === "OLDEST_CONTACT_AGE")?.Value || 0;
+        const oldestContactAge = Math.round(oldestContactAgeSeconds * 1000);
 
         const variablesUpdate = {
             input: {
