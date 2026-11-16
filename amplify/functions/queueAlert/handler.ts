@@ -4,6 +4,7 @@ import { SignatureV4 } from "@aws-sdk/signature-v4";
 import { Sha256 } from "@aws-crypto/sha256-universal";
 
 import type {
+    Context,
     KinesisStreamBatchResponse,
     KinesisStreamHandler,
     KinesisStreamRecordPayload,
@@ -127,25 +128,23 @@ async function getQueueList() {
     }
 };
 
-async function getConnectMetrics(queueId: string) {
-    //logger.info(`start getConnectMetrics`);
-    //logger.info(`get queueId: ${queueId}`);
-    // 1. Amazon Connectのメトリクスを取得
+// 全キューのメトリクスを1回の呼び出しでまとめて取得する（キュー単位に集計）
+// ※キューごとに呼び出すと API の呼び出し回数の上限（ThrottlingException）を超えるため
+async function getConnectMetricsForQueues(queueIds: string[]) {
     const command = new GetCurrentMetricDataCommand({
-        InstanceId: instanceId!,
+        InstanceId: instanceId,
         Filters: {
-            Queues: [queueId],
-            Channels: ["VOICE", "CHAT", "TASK"], // 音声通話の待ち呼を取得。必要に応じて "CHAT", "TASK" に変更可能
+            Queues: queueIds, // 最大100件まで指定可能
+            Channels: ["VOICE", "CHAT", "TASK"],
         },
+        Groupings: ["QUEUE"],
         CurrentMetrics: [
             { Name: "CONTACTS_IN_QUEUE", Unit: "COUNT" },   // 待ち呼数
             { Name: "OLDEST_CONTACT_AGE", Unit: "SECONDS" } // 最長待ち時間
         ],
     });
-
-    const connectResponse = await connectClient.send(command);
-    return connectResponse;
-};
+    return await connectClient.send(command);
+}
 
 async function updateAmplifyData(metrics: any, queueId: string, queueName: string) {
     try {
@@ -208,25 +207,34 @@ async function updateAmplifyData(metrics: any, queueId: string, queueName: strin
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 //export const handler = async (event: any) => {
-export const handler = async (event: any) => {
+export const handler = async (event: any, context: Context) => {
     // Amazon Connectのキューリストを取得
     const allQueues = await getQueueList();
-    //logger.info(`get allQueues: ${JSON.stringify(allQueues)}`);
+    if (!Array.isArray(allQueues) || allQueues.length === 0) {
+        logger.warn("対象のキューが取得できなかったため、処理を終了します");
+        return "No queues";
+    }
+    const queueNameById = new Map(allQueues.map((queue) => [queue.id, queue.name]));
 
     // 1分以内に処理を終えるため、5秒間隔の処理を最大11回(約55秒)実行する
     for (let i = 0; i < 11; i++) {
-        // 全てのキューのメトリクスを更新
-        for (const [id, queue] of Object.entries(allQueues)) {
-            // 1. Amazon Connect の GetCurrentMetricData を実行
-            const metrics = await getConnectMetrics(queue.id);
+        try {
+            // 1. 全キューのメトリクスを1回の呼び出しで取得
+            const metrics = await getConnectMetricsForQueues([...queueNameById.keys()]);
 
-            // 2. Amplify Data (AppSync) に対して更新(Mutation)を実行
-            if (metrics.MetricResults?.length) {
-                await updateAmplifyData(metrics, queue.id, queue.name);
-            } else {
-                logger.info(`MetricResults is empty`);
+            // 2. キューごとに Amplify Data (AppSync) を更新
+            for (const result of metrics.MetricResults ?? []) {
+                const queueId = result.Dimensions?.Queue?.Id;
+                if (!queueId || !queueNameById.has(queueId)) continue;
+                await updateAmplifyData({ MetricResults: [result] }, queueId, queueNameById.get(queueId)!);
             }
+        } catch (error) {
+            // 一時的な失敗でも処理全体を止めず、次の取得で再試行する
+            logger.warn(`メトリクスの取得に失敗しました（${i + 1}回目）`, { error });
         }
+
+        // 次の待機と取得を行う時間が残っていなければ終了する
+        if (context.getRemainingTimeInMillis() < 10000) break;
 
         // 3. 5秒待機
         await sleep(5000);
