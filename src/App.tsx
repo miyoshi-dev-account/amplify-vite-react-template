@@ -63,6 +63,9 @@ const contactClient = new ContactClient();
 // 許可/拒否はオーソライザーが秘密ヘッダーで判定するため、トークンは固定のダミー値でよい
 const client = generateClient<Schema>({ authMode: 'lambda', authToken: 'cloudfront-origin' });
 
+// 名前を日本語の並び順で比較する（キュー一覧・クイック接続一覧で共用）
+const nameCollator = new Intl.Collator('ja');
+
 /** 型定義の開始 **/
 // config.jsonの設定値
 interface AppConfig {
@@ -666,7 +669,7 @@ function App() {
       qcType === lowerFilterType ||
       qcQuickConnectType === lowerFilterType
     );
-  });
+  }).sort((a, b) => nameCollator.compare(a.name ?? '', b.name ?? '')); // 名前順に並べる
 
   // 通話履歴用
   // リダイヤル発信処理
@@ -835,11 +838,14 @@ function App() {
 
   useEffect(() => {
     if (agentInfo?.routingProfile?.queues) {
-      // 抽出した配列を availableQueues にセットする
-      setAvailableQueues(agentInfo.routingProfile.queues.filter((queue: QueueData) => queue.name));
+      // 名前のあるキューだけを、名前順に並べて availableQueues にセットする
+      const sortedQueues = agentInfo.routingProfile.queues
+        .filter((queue: QueueData) => queue.name)
+        .sort((a: QueueData, b: QueueData) => nameCollator.compare(a.name ?? '', b.name ?? ''));
+      setAvailableQueues(sortedQueues);
 
-      if (agentInfo.routingProfile.queues.length > 0) {
-        setSelectedQueueARN(agentInfo.routingProfile.queues[0].queueARN);
+      if (sortedQueues.length > 0) {
+        setSelectedQueueARN(sortedQueues[0].queueARN);
       }
     }
   }, [agentInfo]);
