@@ -29,8 +29,6 @@ const formatWaitTimeMMSS = (totalSeconds: number) => {
 };
 
 export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
-    // 待ち呼が発生しているかどうか（通知のON/OFF）を管理するステート
-    const [hasWaitingCalls, setHasWaitingCalls] = useState(false);
     // 画面表示用にキューごとの詳細データを保持するステート（オプション）
     const [metricsData, setMetricsData] = useState<Array<Schema['QueueMetrics']['type']>>([]);
 
@@ -42,18 +40,7 @@ export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
         const subscription = client.models.QueueMetrics.observeQuery().subscribe({
             next: (data) => {
                 // data.items には、テーブル内のすべての最新レコードの配列が入ります
-                const items = data.items;
-                //setMetricsData(items);
                 setMetricsData([...data.items]);
-
-                // 配列の中から、1つでも contactsInQueue が 1 以上のキューがあるかを判定
-                // ※ some メソッドは条件に合致する要素が1つでもあれば true を返します
-                const isAlertNeeded = items.some(
-                    (queue) => (queue.contactsInQueue || 0) > 0
-                );
-
-                // 判定結果をステートにセット（1以上なら trueで通知ON、すべて0なら falseで通知OFF）
-                setHasWaitingCalls(isAlertNeeded);
             },
             error: (error) => {
                 console.error('キューメトリクスの監視中にエラーが発生しました:', error);
@@ -69,6 +56,12 @@ export default function QueueMonitor({ availableQueues }: QueueMonitorProps) {
     const filteredMetrics = metricsData.filter((metric) => {
         return availableQueues.some(queue => queue.name === (metric as any).queueName);
     });
+
+    // 対応するキューの中に、1つでも待ち呼（1以上）があれば通知する
+    // （対応できないキューの待ち呼では通知しないよう、絞り込み後のデータで判定する）
+    const hasWaitingCalls = filteredMetrics.some(
+        (metric) => ((metric as any).contactsInQueue || 0) > 0
+    );
 
     // 縮小モードがONの場合は先頭の1行だけ抽出し、OFFの場合は全件表示する
     const displayMetrics = isCompactMode ? filteredMetrics.slice(0, 1) : filteredMetrics;
