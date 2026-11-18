@@ -200,6 +200,9 @@ async function updateAmplifyData(metrics: any, queueId: string, queueName: strin
                 if (createResponse.data.errors) {
                     console.error("Create実行時のエラー:", createResponse.data.errors);
                 }
+            } else {
+                // レコードがない以外の理由で更新に失敗した場合は、原因を調べられるようログに出す
+                console.error(`キュー[${queueName}] の更新に失敗しました:`, errors);
             }
         }
 
@@ -222,16 +225,24 @@ export const handler = async (event: any, context: Context) => {
 
     // 1分以内に処理を終えるため、5秒間隔の処理を最大11回(約55秒)実行する
     for (let i = 0; i < 11; i++) {
+        const startedAt = Date.now();
         try {
             // 1. 全キューのメトリクスを1回の呼び出しで取得
             const metrics = await getConnectMetricsForQueues([...queueNameById.keys()]);
 
-            // 2. キューごとに Amplify Data (AppSync) を更新
+            // 2. 全キューの Amplify Data (AppSync) を並行して更新
+            // キュー単位で集計すると、待ち呼もエージェントの動きもないキューは結果に含まれないため、
+            // 結果に含まれないキューは 0件・待ち時間0 として更新する
+            // （待ち呼があるキューは、対応できるエージェントがいなくても結果に含まれることを確認済み）
+            const resultByQueueId = new Map<string, any>();
             for (const result of metrics.MetricResults ?? []) {
                 const queueId = result.Dimensions?.Queue?.Id;
-                if (!queueId || !queueNameById.has(queueId)) continue;
-                await updateAmplifyData({ MetricResults: [result] }, queueId, queueNameById.get(queueId)!);
+                if (queueId) resultByQueueId.set(queueId, result);
             }
+            await Promise.all([...queueNameById].map(([queueId, queueName]) => {
+                const result = resultByQueueId.get(queueId);
+                return updateAmplifyData({ MetricResults: result ? [result] : [] }, queueId, queueName);
+            }));
         } catch (error) {
             // 一時的な失敗でも処理全体を止めず、次の取得で再試行する
             logger.warn(`メトリクスの取得に失敗しました（${i + 1}回目）`, { error });
@@ -240,8 +251,8 @@ export const handler = async (event: any, context: Context) => {
         // 次の待機と取得を行う時間が残っていなければ終了する
         if (context.getRemainingTimeInMillis() < 10000) break;
 
-        // 3. 5秒待機
-        await sleep(5000);
+        // 3. 処理の開始から5秒たつまで待機する
+        await sleep(Math.max(0, 5000 - (Date.now() - startedAt)));
     }
     return "Success";
 };
