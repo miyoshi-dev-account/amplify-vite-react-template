@@ -223,22 +223,18 @@ const originVerifySecret = new secretsmanager.Secret(
 originVerifySecret.grantRead(backend.originAuthorizer.resources.lambda);
 backend.originAuthorizer.addEnvironment('ORIGIN_VERIFY_SECRET_ARN', originVerifySecret.secretArn);
 
-// CloudFrontに埋め込む値（CloudFormationの動的参照として解決される）
-const originVerifyValue = originVerifySecret.secretValue.unsafeUnwrap();
-
 // AppSync のホスト名（https://xxx.appsync-api.../graphql → xxx.appsync-api...）
 const appsyncCfn = backend.data.resources.cfnResources.cfnGraphqlApi;
 const appsyncApiHost = cdk.Fn.select(2, cdk.Fn.split('/', appsyncCfn.attrGraphQlUrl));
 const appsyncRealtimeHost = cdk.Fn.select(2, cdk.Fn.split('/', appsyncCfn.attrRealtimeUrl));
 
-// AppSync をオリジンとして定義（秘密ヘッダーBを付与）
+// AppSync をオリジンとして定義
+// ※秘密ヘッダーBは、平文で設定に残らないよう CloudFront Function で付与する
 const appsyncApiOrigin = new origins.HttpOrigin(appsyncApiHost, {
   protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
-  customHeaders: { 'x-origin-verify': originVerifyValue },
 });
 const appsyncRealtimeOrigin = new origins.HttpOrigin(appsyncRealtimeHost, {
   protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
-  customHeaders: { 'x-origin-verify': originVerifyValue },
 });
 
 // 秘密ヘッダーBの値を保存する CloudFront KeyValueStore
@@ -247,14 +243,21 @@ const originVerifyStore = new cloudfront.KeyValueStore(hostingStack, 'OriginVeri
   comment: 'CloudFront -> AppSync origin verify header value',
 });
 
-// リアルタイム接続のハンドシェイクを AppSync 向けに書き換える CloudFront Function
-//  - パス: /graphql/realtime → /graphql
-//  - Sec-WebSocket-Protocol の header-<base64url> 内の host を AppSync のホスト名に置換し、秘密ヘッダーBを追加
+// AppSync へのリクエストに秘密ヘッダーBを付与する CloudFront Function
+//  - 秘密ヘッダーBの値は KeyValueStore から読み出す（コードには書かない）
+//  - /graphql/realtime: パスを /graphql に変更し、Sec-WebSocket-Protocol の header-<base64url> 内の
+//    host を AppSync のホスト名に置換して、秘密ヘッダーBを追加する
+//  - /graphql: 秘密ヘッダーBをリクエストヘッダーとして付与する
+//  ※値が取得できない場合は秘密ヘッダーBを付けない（オーソライザーで拒否される）
+//  ※CDK 上の ID は、関数を作り直さないよう変更しない
 const appsyncRealtimeFunction = new cloudfront.Function(hostingStack, 'AppSyncRealtimeHandshakeFunction', {
   runtime: cloudfront.FunctionRuntime.JS_2_0,
+  keyValueStore: originVerifyStore,
   code: cloudfront.FunctionCode.fromInline(`
+import cf from 'cloudfront';
+
 var APPSYNC_HOST = '${appsyncApiHost}';
-var ORIGIN_VERIFY = '${originVerifyValue}';
+var kvsHandle = cf.kvs('${originVerifyStore.keyValueStoreId}');
 
 function b64urlDecode(s) {
   s = s.replace(/-/g, '+').replace(/_/g, '/');
@@ -267,20 +270,37 @@ function b64urlEncode(s) {
     .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
 }
 
+async function getOriginVerify() {
+  try {
+    return await kvsHandle.get('origin-verify');
+  } catch (e) {
+    return null;
+  }
+}
+
 async function handler(event) {
   var request = event.request;
-  request.uri = '/graphql';
+  var originVerify = await getOriginVerify();
 
-  var protocolHeader = request.headers['sec-websocket-protocol'];
-  if (protocolHeader) {
-    protocolHeader.value = protocolHeader.value.split(',').map(function (p) {
-      p = p.trim();
-      if (p.indexOf('header-') !== 0) { return p; }
-      var authHeader = JSON.parse(b64urlDecode(p.substring(7)));
-      authHeader.host = APPSYNC_HOST;
-      authHeader['x-origin-verify'] = ORIGIN_VERIFY;
-      return 'header-' + b64urlEncode(JSON.stringify(authHeader));
-    }).join(', ');
+  // 利用者が送ってきた同名のヘッダーは使わない
+  delete request.headers['x-origin-verify'];
+  if (originVerify) {
+    request.headers['x-origin-verify'] = { value: originVerify };
+  }
+
+  if (request.uri === '/graphql/realtime') {
+    request.uri = '/graphql';
+    var protocolHeader = request.headers['sec-websocket-protocol'];
+    if (protocolHeader) {
+      protocolHeader.value = protocolHeader.value.split(',').map(function (p) {
+        p = p.trim();
+        if (p.indexOf('header-') !== 0) { return p; }
+        var authHeader = JSON.parse(b64urlDecode(p.substring(7)));
+        authHeader.host = APPSYNC_HOST;
+        if (originVerify) { authHeader['x-origin-verify'] = originVerify; }
+        return 'header-' + b64urlEncode(JSON.stringify(authHeader));
+      }).join(', ');
+    }
   }
   return request;
 }
@@ -325,6 +345,11 @@ const hostingDistribution = new cloudfront.Distribution(hostingStack, 'HostingDi
       allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
       originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      // 秘密ヘッダーBを付与する
+      functionAssociations: [{
+        function: appsyncRealtimeFunction,
+        eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+      }],
     },
   },
 });
