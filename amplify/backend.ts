@@ -241,6 +241,12 @@ const appsyncRealtimeOrigin = new origins.HttpOrigin(appsyncRealtimeHost, {
   customHeaders: { 'x-origin-verify': originVerifyValue },
 });
 
+// 秘密ヘッダーBの値を保存する CloudFront KeyValueStore
+// ※値はテンプレートに書かず、デプロイ後に CLI で登録する（キー: origin-verify）
+const originVerifyStore = new cloudfront.KeyValueStore(hostingStack, 'OriginVerifyStore', {
+  comment: 'CloudFront -> AppSync origin verify header value',
+});
+
 // リアルタイム接続のハンドシェイクを AppSync 向けに書き換える CloudFront Function
 //  - パス: /graphql/realtime → /graphql
 //  - Sec-WebSocket-Protocol の header-<base64url> 内の host を AppSync のホスト名に置換し、秘密ヘッダーBを追加
